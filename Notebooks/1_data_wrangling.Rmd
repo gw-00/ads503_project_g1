@@ -1,0 +1,79 @@
+---
+title: "Data Wrangling"
+authors: Darren Chen, Jun Clemente, and Graham Ward 
+output: pdf_document
+date: "2025-06-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Dependences
+```{r}
+library(tidyverse)
+```
+
+
+# Data Importing
+```{r}
+# loading the 14 feature processed data sets
+clvd_filtered <- read.csv("../Data/Filtered/processed.cleveland.data", 
+                          header = FALSE)
+hung_filtered <- read.csv("../Data/Filtered/processed.hungarian.data", 
+                          header = FALSE)
+switz_filtered <- read.csv("../Data/Filtered/processed.switzerland.data", 
+                           header = FALSE)
+va_lb_filtered <- read.csv("../Data/Filtered/processed.va.data", 
+                           header = FALSE)
+# address the lack of header row and need column names for the features
+# build out the column names 
+col_names_filtered <- c("age", # age in years
+               "sex", # 1 = male, 0 = female
+               "cp", # chest pain 1-4
+               "trestbps", # resting blood pressure
+               "chol", # serum cholesterol in mg/dl
+               "fbs", # fasting blood sugar > 120mg/dl (1=TRUE, 0=FALSE)
+               "restecg", # resting electrocardiograph results
+               "thalach", # maximum heart rate achieved
+               "exang", # exercised induced angina (1=yes, 0=no)
+               "oldpeak", # ST depression induced by exercise relative to rest
+               "slope", #slope of the peak exercise ST segment(1=upslope,2=flat,
+                                                              # 3=downslope)
+               "ca", # number of major vessels (0-3) colored by fluoroscope
+               "thal", # 3=normal, 6=fixed defect, 7=reversible defect
+               "num" # 0 represents no heart disease, >1 indicates heart disease
+               )
+# assign col_names_filtered to each data frame
+colnames(clvd_filtered) <- col_names_filtered
+colnames(hung_filtered) <- col_names_filtered
+colnames(switz_filtered) <- col_names_filtered
+colnames(va_lb_filtered) <- col_names_filtered
+
+# add source labels for merging
+clvd_filtered$source <- "cleveland"
+hung_filtered$source <- "hungarian"
+switz_filtered$source <- "switzerland"
+va_lb_filtered$source <- "va"
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
