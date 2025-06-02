@@ -1,0 +1,419 @@
+---
+title: 'Exploratory Data Analysis: Hungarian Heart Disease Dataset'
+author: "darren chen"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: '2'
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+# 1. Introduction
+
+This R Markdown document performs an exploratory data analysis (EDA) on the Hungarian subset of the UCI Heart Disease dataset (Dua & Graff, 2017). We focus on the 14 common attributes used in machine-learning experiments, examine distributions, missing values, and feature relationships.
+
+# 2. Load Libraries
+
+```{r libraries}
+# Load required packages
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+library(knitr)
+```
+
+# 3. Data Import
+
+The Hungarian data file (`hungarian.data`) should be placed in your working directory. We will read it, assign column names, and convert `-9` to NA.
+
+```{r load-data}
+#```{r load‐all‐columns}
+library(readr)
+library(dplyr)
+
+# 1. Define all 76 column names, in the exact order they appear in hungarian.data:
+full_cols <- c(
+  "id",       # 1. patient ID
+  "ccf",      # 2. ccf (social security #; now dummy)
+  "age",      # 3. age in years
+  "sex",      # 4. sex (1=male; 0=female)
+  "painloc",  # 5. chest pain location (1=substernal; 0=otherwise)
+  "painexer", # 6. provoked by exertion (1=yes; 0=no)
+  "relrest",  # 7. relieved after rest (1=yes; 0=no)
+  "pncaden",  # 8. sum of 5, 6, and 7
+  "cp",       # 9. chest pain type (1–4)
+  "trestbps", # 10. resting blood pressure (mm Hg)
+  "htn",      # 11. history of hypertension (1=yes; 0=no)
+  "chol",     # 12. serum cholesterol (mg/dL)
+  "smoke",    # 13. is a smoker (1=yes; 0=no)
+  "cigs",     # 14. cigarettes per day
+  "years",    # 15. years as a smoker
+  "fbs",      # 16. fasting blood sugar > 120 mg/dL (1=yes; 0=no)
+  "dm",       # 17. diabetes history (1=yes; 0=no)
+  "famhist",  # 18. family history of CAD (1=yes; 0=no)
+  "restecg",  # 19. resting ECG results (0–2)
+  "ekgmo",    # 20. month of exercise ECG reading
+  "ekgday",   # 21. day of exercise ECG reading
+  "ekgyr",    # 22. year of exercise ECG reading
+  "dig",      # 23. digitalis used during ECG (1=yes; 0=no)
+  "prop",     # 24. beta blocker used (1=yes; 0=no)
+  "nitr",     # 25. nitrates used (1=yes; 0=no)
+  "pro",      # 26. calcium channel blocker used (1=yes; 0=no)
+  "diuretic", # 27. diuretic used during ECG (1=yes; 0=no)
+  "proto",    # 28. exercise protocol (1=Bruce, 2=Kottus, … 12=arm ergometer)
+  "thaldur",  # 29. duration of exercise test (minutes)
+  "thaltime", # 30. time when ST depression was noted
+  "met",      # 31. mets achieved
+  "thalach",  # 32. maximum heart rate achieved
+  "thalrest", # 33. resting heart rate
+  "tpeakbps", # 34. peak exercise BP (first part)
+  "tpeakbpd", # 35. peak exercise BP (second part)
+  "dummy",    # 36. (unused)
+  "trestbpd", # 37. resting blood pressure (duplicate)
+  "exang",    # 38. exercise‐induced angina (1=yes; 0=no)
+  "xhypo",    # 39. (1=yes; 0=no)
+  "oldpeak",  # 40. ST depression relative to rest
+  "slope",    # 41. slope of the peak exercise ST segment (1–3)
+  "rldv5",    # 42. height at rest
+  "rldv5e",   # 43. height at peak exercise
+  "ca",       # 44. number of major vessels (0–3) seen on fluoroscopy
+  "restckm",  # 45. irrelevant
+  "exerckm",  # 46. irrelevant
+  "restef",   # 47. rest radionuclide ejection fraction
+  "restwm",   # 48. rest wall motion abnormality (0–3)
+  "exeref",   # 49. exercise radionuclide ejection fraction
+  "exerwm",   # 50. exercise wall motion (0–3)
+  "thal",     # 51. thalassemia (3=normal; 6=fixed; 7=reversible)
+  "thalsev",  # 52. not used
+  "thalpul",  # 53. not used
+  "earlobe",  # 54. not used
+  "cmo",      # 55. month of cardiac cath
+  "cday",     # 56. day of cardiac cath
+  "cyr",      # 57. year of cardiac cath
+  "num",      # 58. diagnosis (0–4)
+  "lmt",      # 59. left main coronary artery
+  "ladprox",  # 60. left anterior descending proximal
+  "laddist",  # 61. left anterior descending distal
+  "diag",     # 62. diagonal
+  "cxmain",   # 63. circumflex main
+  "ramus",    # 64. ramus
+  "om1",      # 65. obtuse marginal 1
+  "om2",      # 66. obtuse marginal 2
+  "rcaprox",  # 67. right coronary artery proximal
+  "rcadist",  # 68. right coronary artery distal
+  "lvx1",     # 69. not used
+  "lvx2",     # 70. not used
+  "lvx3",     # 71. not used
+  "lvx4",     # 72. not used
+  "lvf",      # 73. not used
+  "cathef",   # 74. not used
+  "junk",     # 75. not used
+  "name"      # 76. last name (dummy string)
+)
+
+# 2. Read the Hungarian data file as whitespace-delimited, supplying all 76 names:
+hungarian_full <- read_table2(
+  "C:/Users/darre/OneDrive/Documents/ADS/ADS 503 Predictive Modeling/503Project/ads503_project_g1/Data/Raw/hungarian.data",
+  col_names = full_cols,
+  na = c("?", "-9", "-9.0")
+)
+
+# 3. Quick check of structure:
+glimpse(hungarian_full)
+
+# 4. View the first few rows:
+head(hungarian_full, 5)
+
+
+
+# 
+# library(readr)
+# 
+# # Define column names for the 14 attributes
+# cols <- c(
+#   "age", "sex", "cp", "trestbps", "chol", "fbs",
+#   "restecg", "thalach", "exang", "oldpeak",
+#   "slope", "ca", "thal", "num"
+# )
+# 
+# # Read the Hungarian dataset (it’s whitespace-separated, not comma-separated)
+# hungarian <- read_table2(
+#   "../Data/Raw/hungarian.data",
+#   col_names = cols,
+#   na = c("?", "-9", "-9.0")
+# )
+# 
+# # Preview first rows
+# head(hungarian)
+```
+
+# 4. Data Structure & Summary
+
+## 4.1 Data Dimensions and Structure
+
+```{r structure}
+str(hungarian_full)
+cat("Number of rows:", nrow(hungarian_full), "\n")
+cat("Number of columns:", ncol(hungarian_full), "\n")
+```
+
+## 4.2 Missing Values
+
+```{r missing-values}
+# Count missing values per column
+missings <- hungarian_full %>% summarise_all(~ sum(is.na(.)))
+knitr::kable(missings, caption = "Missing Values per Column")
+
+```
+
+# 5. Descriptive Statistics
+
+## 5.1 Continuous Variables
+
+We examine summary statistics for `age`, `trestbps`, `chol`, `thalach`, and `oldpeak`.
+
+```{r summary-continuous}
+# 1) Coerce to numeric (in case read_table2() read them as character)
+hungarian_full <- hungarian_full %>%
+  mutate(
+    age      = as.numeric(age),
+    trestbps = as.numeric(trestbps),
+    chol     = as.numeric(chol),
+    thalach  = as.numeric(thalach),
+    oldpeak  = as.numeric(oldpeak)
+  )
+
+# 2) Double‐check that coercion worked
+str(hungarian_full %>% select(age, trestbps, chol, thalach, oldpeak))
+# → you should see each as “num” (not “chr” or “chr”).
+
+# 3) Select the now‐numeric columns
+continuous_vars <- hungarian_full %>%
+  select(age, trestbps, chol, thalach, oldpeak)
+
+# 4) Run summary() and pipe to kable()
+summary(continuous_vars) %>%
+  as.data.frame() %>%                 # turn summary() output into a data frame
+  kable(caption = "Summary of Continuous Features")
+```
+
+### 5.1.1 Histograms
+
+```{r histograms, fig.width=6, fig.height=4}
+# Histogram for each continuous variable
+continuous_vars %>% 
+  gather(key = "variable", value = "value") %>% 
+  ggplot(aes(x = value)) +
+    geom_histogram(binwidth = 5, fill = "#2C3E50", color = "white") +
+    facet_wrap(~ variable, scales = "free") +
+    labs(title = "Histograms of Continuous Features", x = "Value", y = "Count") +
+    theme_minimal()
+```
+
+## 5.2 Categorical Variables
+
+We examine counts for `sex`, `cp`, `fbs`, `restecg`, `exang`, `slope`, `ca`, `thal`, and `num`.
+
+```{r summary-categorical}
+
+# 1. Coerce the nine categorical columns to numeric (if they are not already),
+#    and make sure “-9” or “?” are treated as NA. If you already did this
+#    when reading ‘hungarian_full’, you can skip straight to step (2).
+hungarian_clean <- hungarian_full %>%
+  mutate(
+    sex     = as.numeric(sex),
+    cp      = as.numeric(cp),
+    fbs     = as.numeric(fbs),
+    restecg = as.numeric(restecg),
+    exang   = as.numeric(exang),
+    slope   = as.numeric(slope),
+    ca      = as.numeric(ca),
+    thal    = as.numeric(thal),
+    num0    = as.numeric(num)   # temporarily read “num” into “num0”
+  ) %>%
+  # Replace any “-9” or out-of-range codes with NA (if present):
+  mutate_at(vars(sex, cp, fbs, restecg, exang, slope, ca, thal, num0),
+            ~ ifelse(. < 0, NA, .))
+
+# 2. Collapse “num0” (values 0–4) into a binary “num” factor:
+#    0 → "no_disease", 1–4 → "disease"
+hungarian_clean <- hungarian_clean %>%
+  mutate(
+    num = case_when(
+      num0 == 0            ~ 0L,
+      num0 %in% c(1,2,3,4) ~ 1L,
+      TRUE                 ~ NA_integer_
+    )
+  )
+
+# 3. Select only the nine categorical columns we care about (including the new “num”):
+categorical_vars <- hungarian_clean %>%
+  select(
+    sex,       # #4
+    cp,        # #9
+    fbs,       # #16
+    restecg,   # #19
+    exang,     # #38
+    slope,     # #41
+    ca,        # #44
+    thal,      # #51
+    num        # collapsed #58
+  ) %>%
+  # 4. Drop any rows that are still NA in any of these nine columns:
+  filter(
+    !is.na(sex),    
+    !is.na(cp),
+    !is.na(fbs),
+    !is.na(restecg),
+    !is.na(exang),
+    !is.na(slope),
+    !is.na(ca),
+    !is.na(thal),
+    !is.na(num)
+  ) %>%
+  # 5. Turn each numeric code into a factor with the correct labels:
+  mutate(
+    sex     = factor(sex, levels = c(0,1), labels = c("female","male")),
+    cp      = factor(cp, levels = 1:4,
+                     labels = c("typical_angina","atypical_angina",
+                                "nonanginal_pain","asymptomatic")),
+    fbs     = factor(fbs, levels = c(0,1),
+                     labels = c("<=120mg/dL",">120mg/dL")),
+    restecg = factor(restecg, levels = 0:2,
+                     labels = c("normal","ST_T_abnormality","LV_hypertrophy")),
+    exang   = factor(exang, levels = c(0,1), labels = c("no","yes")),
+    slope   = factor(slope, levels = 1:3,
+                     labels = c("upsloping","flat","downsloping")),
+    ca      = factor(ca, levels = 0:3,
+                     labels = c("0_vessels","1_vessel","2_vessels","3_vessels")),
+    thal    = factor(thal, levels = c(3,6,7),
+                     labels = c("normal","fixed_defect","reversible_defect")),
+    num     = factor(num, levels = c(0,1), labels = c("no_disease","disease"))
+  )
+
+# 6. Confirm that NAs are gone and check the first few rows:
+cat("After filtering out NAs, number of rows =", nrow(categorical_vars), "\n")
+str(categorical_vars)
+head(categorical_vars)
+
+# 7. Generate frequency tables for each categorical variable:
+for (var_name in names(categorical_vars)) {
+  freq_tbl <- table(categorical_vars[[var_name]])
+  df_freq  <- as.data.frame(freq_tbl)
+  colnames(df_freq) <- c("Category","Count")
+  
+  cat("\n### Frequency of", var_name, "\n")
+  print(knitr::kable(df_freq, caption = paste("Frequency of", var_name)))
+}
+
+```
+
+
+
+
+```{r tables-categorical}
+for (var_name in names(categorical_vars)) {
+  freq_tbl <- table(categorical_vars[[var_name]])
+  df_freq  <- as.data.frame(freq_tbl)
+  colnames(df_freq) <- c("Category", "Count")
+  
+  cat("\n**Frequency of", var_name, "**\n")
+  print(knitr::kable(df_freq, caption = paste("Frequency of", var_name)))
+}
+
+```
+# 6. Target Variable Distribution
+
+```{r target-distribution}
+num_counts <- hungarian_clean %>% 
+  count(num) %>% 
+  mutate(proportion = n / sum(n))
+
+kable(num_counts, caption = "Counts and Proportions of Heart Disease Diagnosis (num)")
+```
+
+```{r target-barplot, fig.width=5, fig.height=4}
+ggplot(hungarian_clean, aes(x = factor(num))) +
+  geom_bar(fill = "#E74C3C", color = "white") +
+  labs(title = "Distribution of Heart Disease Diagnosis (num)",
+       x = "Diagnosis (0 = No disease, 1–4 = Disease levels)",
+       y = "Count") +
+  theme_minimal()
+```
+
+# 7. Bivariate Analysis
+
+## 7.1 Continuous vs. Target
+
+```{r boxplots, fig.width=8, fig.height=6}
+# Boxplots of continuous features by target
+continuous_vars %>% 
+  mutate(num = factor(hungarian_clean$num)) %>% 
+  gather(key = "variable", value = "value", -num) %>% 
+  ggplot(aes(x = num, y = value, fill = num)) +
+    geom_boxplot() +
+    facet_wrap(~ variable, scales = "free") +
+    labs(title = "Boxplots of Continuous Features by Heart Disease Presence",
+         x = "Diagnosis (0 vs 1–4)",
+         y = "Value") +
+    theme_minimal() +
+    theme(legend.position = "none")
+```
+
+## 7.2 Categorical vs. Target
+
+```{r stacked-bar, fig.width=8, fig.height=6}
+# Example: Chest Pain Type (cp) vs. num
+ggplot(hungarian_clean, aes(x = factor(cp), fill = factor(num))) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportion of Heart Disease by Chest Pain Type",
+       x = "Chest Pain Type (1=Typical, 2=Atypical, 3=Non-anginal, 4=Asymptomatic)",
+       y = "Proportion",
+       fill = "Diagnosis") +
+  theme_minimal()
+```
+
+# 8. Correlation Analysis of Continuous Features
+
+```{r correlation-matrix, fig.width=6, fig.height=6}
+# Compute correlation matrix (pairwise complete observations)
+corr_matrix <- cor(continuous_vars, use = "pairwise.complete.obs")
+
+# Plot correlation heatmap
+corrplot(corr_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45, 
+         title = "Correlation Matrix of Continuous Features", 
+         mar = c(0,0,1,0))
+```
+
+# 9. Save Cleaned Data (Optional)
+
+If you wish to save the cleaned version (with NAs handled) for downstream analysis:
+
+```{r save-cleaned}
+# Example: Replace missing values with median (for continuous) or mode (for categorical)
+hungarian_clean <- hungarian_clean %>%
+  mutate_at(vars(age, trestbps, chol, thalach, oldpeak),
+            ~ ifelse(is.na(.), median(., na.rm = TRUE), .)) %>%
+  mutate_at(vars(sex, cp, fbs, restecg, exang, slope, ca, thal, num),
+            ~ replace_na(., as.integer(names(sort(table(.), decreasing = TRUE))[1])))
+
+write_csv(hungarian_clean, "hungarian_clean.csv")
+```
+
+# 10. Conclusion
+
+This EDA summarized data structure, missingness, distributions of key features, and relationships with the target variable. The cleaned data can be used for predictive modeling in subsequent analyses.
