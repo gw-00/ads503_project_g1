@@ -1,7 +1,195 @@
 ---
-title: "jc-eda"
+title: "Exploratory Data Analysis"
+author: "Jun Clemente"
 format: html
+editor: source
 ---
 
-# EDA on switzerland data
-Columns w missing 50% 
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(here)
+library(readr)
+```
+
+# Switzerland RAW Dataset - EDA
+
+-   Columns with \>50% missing data will be flagged as unuseable unless data can be imputed
+
+## Analyze and Import dataset
+
+The `switzerland.data` file contains the raw dataset, comprising **123 patient records** with **76 attributes**, including the target variable. The data is stored in an unconventional format: although it's a plain text file with space-separated values, **each patient record spans 10 rows**, and there are no header names provided. The end of each record is indicated by the final field labeled `"name"`.
+
+To import and restructure the dataset into a standard tabular format (one row per patient, with properly named columns), **Generative AI assistance** was used to develop R code that:
+
+-   Combines every 10 lines into a single record,
+
+-   Extracts numerical values and the patient name,
+
+-   Assigns appropriate column names, and
+
+-   Handles placeholder values (e.g., `-9`) by converting them to `NA`.
+
+```{r load_data}
+col_names_filtered <- c(
+  "id",       # patient identification number
+  "ccf",      # social security number (dummy value)
+  "age",      # age in years
+  "sex",      # sex (1 = male; 0 = female)
+  "painloc",  # chest pain location (1 = substernal; 0 = otherwise)
+  "painexer", # provoked by exertion (1 = yes; 0 = no)
+  "relrest",  # relieved after rest (1 = yes; 0 = no)
+  "pncaden",  # sum of painexer, relrest, etc.
+  "cp",       # chest pain type (1–4)
+  "trestbps", # resting blood pressure (mm Hg)
+  "htn",      # hypertension (1 = yes; 0 = no)
+  "chol",     # serum cholesterol (mg/dl)
+  "smoke",    # smoker (1 = yes; 0 = no)
+  "cigs",     # cigarettes per day
+  "years",    # years as a smoker
+  "fbs",      # fasting blood sugar > 120 mg/dl (1 = true; 0 = false)
+  "dm",       # history of diabetes (1 = yes; 0 = no)
+  "famhist",  # family history of coronary artery disease (1 = yes; 0 = no)
+  "restecg",  # resting ECG results (0–2)
+  "ekgmo",    # month of exercise ECG
+  "ekgday",   # day of exercise ECG
+  "ekgyr",    # year of exercise ECG
+  "dig",      # digitalis during exercise ECG (1 = yes; 0 = no)
+  "prop",     # beta blocker during exercise ECG (1 = yes; 0 = no)
+  "nitr",     # nitrates during exercise ECG (1 = yes; 0 = no)
+  "pro",      # calcium channel blocker during exercise ECG (1 = yes; 0 = no)
+  "diuretic", # diuretic during exercise ECG (1 = yes; 0 = no)
+  "proto",    # exercise protocol (1 = Bruce, 2 = Kottus, …, 12 = arm ergometer)
+  "thaldur",  # duration of exercise (minutes)
+  "thaltime", # time when ST depression noted
+  "met",      # METs achieved
+  "thalach",  # maximum heart rate achieved
+  "thalrest", # resting heart rate
+  "tpeakbps", # peak exercise blood pressure (part 1)
+  "tpeakbpd", # peak exercise blood pressure (part 2)
+  "dummy",    # dummy variable (unused)
+  "trestbpd", # resting blood pressure (duplicate measurement)
+  "exang",    # exercise-induced angina (1 = yes; 0 = no)
+  "xhypo",    # (1 = yes; 0 = no)
+  "oldpeak",  # ST depression induced by exercise
+  "slope",    # slope of peak exercise ST segment (1–3)
+  "rldv5",    # height at rest
+  "rldv5e",   # height at peak exercise
+  "ca",       # number of major vessels (0–3) colored by fluoroscopy
+  "restckm",  # resting cardiokinetic measurement (irrelevant)
+  "exerckm",  # exercise cardiokinetic measurement (irrelevant)
+  "restef",   # resting radionuclide ejection fraction
+  "restwm",   # rest wall motion abnormality (0–3)
+  "exeref",   # exercise radionuclide ejection fraction
+  "exerwm",   # exercise wall motion
+  "thal",     # thallium test (3 = normal; 6 = fixed defect; 7 = reversible defect)
+  "thalsev",  # (not used)
+  "thalpul",  # (not used)
+  "earlobe",  # (not used)
+  "cmo",      # month of cardiac catheterization
+  "cday",     # day of cardiac catheterization
+  "cyr",      # year of cardiac catheterization
+  "num",      # diagnosis of heart disease (0 = < 50% narrowing; 1 = > 50% narrowing)
+  "lmt",      # left main trunk vessel status
+  "ladprox",  # proximal LAD vessel status
+  "laddist",  # distal LAD vessel status
+  "diag",     # diagonal vessel status
+  "cxmain",   # circumflex main vessel status
+  "ramus",    # ramus vessel status
+  "om1",      # obtuse marginal 1 vessel status
+  "om2",      # obtuse marginal 2 vessel status
+  "rcaprox",  # right coronary artery proximal status
+  "rcadist",  # right coronary artery distal status
+  "lvx1",     # (not used)
+  "lvx2",     # (not used)
+  "lvx3",     # (not used)
+  "lvx4",     # (not used)
+  "lvf",      # (not used)
+  "cathef",   # (not used)
+  "junk",     # junk (not used)
+  "name"      # last name of patient
+)
+
+# Generative AI used to write code to read in .data file
+# Step 1: Read the file
+lines <- readLines(here("Data", "Raw/switzerland.data"))
+
+# Step 2: Combine every 10 lines per patient
+patient_blocks <- split(lines, ceiling(seq_along(lines) / 10))
+
+# Step 3: Parse each block into numeric + name
+records <- map(patient_blocks, function(block) {
+  tokens <- str_split(paste(block, collapse = " "), "\\s+")[[1]]
+  name_value <- tail(tokens, 1)                      # last value is the name
+  numeric_values <- as.numeric(tokens[-length(tokens)])
+  c(numeric_values, name_value)                     # combine numeric + name
+})
+
+# Step 4: Combine into data frame
+data <- do.call(rbind, records) %>% 
+  as.data.frame(stringsAsFactors = FALSE)
+
+# Step 5: Assign column names
+colnames(data) <- col_names_filtered
+
+# Step 6: Replace -9 with NA
+data <- data %>%
+  mutate(across(where(is.character), ~ na_if(.x, "-9"))) %>%   # character columns
+  mutate(across(where(is.numeric), ~ na_if(.x, -9)))           # numeric columns
+
+head(data)
+```
+
+### Verify dimensions
+
+```{r}
+dim(data)
+```
+
+Per the *heart-disease.names* file, the Switzerland dataset contains 123 instances and 76 attributes. This confirms that the dataset read from the *.data* file was imported correctly.
+
+### Export data to RDS file
+
+```{r save_data}
+# save data as RDS file
+data %>%
+  write_rds(here("Data", "EDA", "switzerland_eda.rds"))
+# read in data
+df <- read_rds(here("Data", "EDA", "switzerland_eda.rds"))
+head(df)
+```
+
+# Exploratory Data Analysis
+
+```{r}
+
+print("Summary:")
+df %>% summary()
+
+print("Column names:")
+df %>% names()
+```
+## Check for missing values
+```{r}
+# df %>%
+#   summarise(across(everything(), ~ sum(is.na(.)))) %>%
+#   pivot_longer(everything(), names_to = "column", values_to = "n_missing") %>%
+#   arrange(desc(n_missing))
+
+# calculate percentage missing
+missing_pct <- df %>%
+  summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "missing_percent") %>%
+  arrange(desc(missing_percent))
+
+# filter by col missing > 50%
+missing_pct %>%
+  filter(missing_percent > 50)
+
+```
+
+There are attributes that are missing > 50% of the data. 
+
+
