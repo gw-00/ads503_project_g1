@@ -3,3 +3,5 @@ title: "jc-eda"
 format: html
 ---
 
+# EDA on switzerland data
+Columns w missing 50% 
