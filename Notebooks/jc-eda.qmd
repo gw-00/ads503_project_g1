@@ -211,7 +211,7 @@ There are 19 attributes that are missing \> 50% of the data.
 ### Variables with high missingness (\>90%)
 
 | Column | Missing % | Description |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | `years` | 98.37% | Years as a smoker |
 | `famhist` | 98.37% | Family history of coronary artery disease (1 = yes; 0 = no) |
 | `ca` | 95.93% | Number of major vessels (0–3) colored by fluoroscopy |
@@ -221,7 +221,7 @@ There are 19 attributes that are missing \> 50% of the data.
 ### Variables with moderate missingness (60-81%)
 
 | Column    | Missing % | Description                                            |
-|-----------|-----------|--------------------------------------------------------|
+|--------------|--------------|---------------------------------------------|
 | `smoke`   | 81.30%    | Smoker (1 = yes; 0 = no)                               |
 | `thalpul` | 78.86%    | (**Not used**)                                         |
 | `rldv5`   | 62.60%    | Height at rest                                         |
@@ -285,7 +285,7 @@ The following charts show the variables left alongside their description. ChatGP
 The following variables are labeled with their description.
 
 | Variable | Description | Usefulness |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | `painloc` | Chest pain location (1 = substernal) | ⚠️ Rarely used in modeling |
 | `painexer` | Pain provoked by exertion | ⚠️ Could support chest pain analysis |
 | `relrest` | Pain relieved by rest | ⚠️ Related to angina symptoms |
@@ -300,9 +300,147 @@ The following variables are labeled with their description.
 #### Test/Procedure Timing & Protocol
 
 | Variable | Description | Usefulness |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | `ekgmo`, `ekgday`, `ekgyr` | Date of exercise ECG | ❌ Drop unless doing time-based analysis |
 | `proto` | Protocol used during exercise test (1 = Bruce, etc.) | ⚠️ Some labs use this |
 | `thaldur`, `thaltime`, `met` | Exercise performance measures (duration, METs) | ✅ Important in functional capacity evaluation |
 | `thalrest` | Resting heart rate | ✅ Could affect stress test outcomes |
 | `tpeakbps`, `tpeakbpd`, `trestbpd` | Blood pressure values | ✅ Potentially informative for cardiac load |
+
+
+## Create subset of most useful variables
+
+```{r}
+# Create enhanced feature set: baseline + additional informative variables
+enhanced_vars <- c(
+  # Baseline ML variables still in your dataset
+  "age", "sex", "cp", "trestbps", "chol", "restecg", "thalach",
+  "exang", "oldpeak", "slope", "thal", "num",
+  
+  # Additional clinical + exercise test variables
+  "htn", "dig", "nitr", "diuretic", "prop",
+  "thaldur", "thaltime", "met", "thalrest",
+  "tpeakbps", "tpeakbpd", "trestbpd", "proto", "xhypo"
+)
+
+# Subset the df to keep only these columns
+df_enhanced <- df %>%
+  select(all_of(enhanced_vars))
+
+df_enhanced %>% head()
+
+df_enhanced %>%
+  summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "missing_percent") %>%
+  filter(missing_percent > 0) %>%
+  arrange(desc(missing_percent))
+```
+```{r}
+df_enhanced %>%
+  summarise(across(everything(), ~ n_distinct(.))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "n_unique") %>%
+  filter(n_unique == 1)
+
+```
+```{r}
+df_enhanced <- df_enhanced %>%
+  select(-chol)
+
+```
+
+
+```{r}
+# Define a mode function
+get_mode <- function(x) {
+  ux <- na.omit(unique(x))
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Impute all variables accordingly
+df_enhanced_clean <- df_enhanced %>%
+  mutate(
+    thal      = ifelse(is.na(thal), get_mode(thal), thal),
+    proto     = ifelse(is.na(proto), get_mode(proto), proto),
+    htn       = ifelse(is.na(htn), get_mode(htn), htn),
+    slope     = ifelse(is.na(slope), get_mode(slope), slope),
+    diuretic  = ifelse(is.na(diuretic), get_mode(diuretic), diuretic),
+    dig       = ifelse(is.na(dig), get_mode(dig), dig),
+    nitr      = ifelse(is.na(nitr), get_mode(nitr), nitr),
+    xhypo     = ifelse(is.na(xhypo), get_mode(xhypo), xhypo),
+    prop      = ifelse(is.na(prop), get_mode(prop), prop),
+    exang     = ifelse(is.na(exang), get_mode(exang), exang),
+    restecg   = ifelse(is.na(restecg), get_mode(restecg), restecg),
+
+    met       = ifelse(is.na(met), median(as.numeric(met), na.rm = TRUE), met),
+    thaltime  = ifelse(is.na(thaltime), median(as.numeric(thaltime), na.rm = TRUE), thaltime),
+    oldpeak   = ifelse(is.na(oldpeak), median(as.numeric(oldpeak), na.rm = TRUE), oldpeak),
+    tpeakbps  = ifelse(is.na(tpeakbps), median(as.numeric(tpeakbps), na.rm = TRUE), tpeakbps),
+    tpeakbpd  = ifelse(is.na(tpeakbpd), median(as.numeric(tpeakbpd), na.rm = TRUE), tpeakbpd),
+    trestbps  = ifelse(is.na(trestbps), median(as.numeric(trestbps), na.rm = TRUE), trestbps),
+    trestbpd  = ifelse(is.na(trestbpd), median(as.numeric(trestbpd), na.rm = TRUE), trestbpd),
+    thaldur   = ifelse(is.na(thaldur), median(as.numeric(thaldur), na.rm = TRUE), thaldur),
+    thalach   = ifelse(is.na(thalach), median(as.numeric(thalach), na.rm = TRUE), thalach),
+    thalrest  = ifelse(is.na(thalrest), median(as.numeric(thalrest), na.rm = TRUE), thalrest)
+  )
+
+
+```
+
+```{r}
+df_enhanced_clean %>%
+  summarise(across(everything(), ~ n_distinct(.))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "n_unique") %>%
+  filter(n_unique == 1)
+```
+```{r}
+df_enhanced_clean<- df_enhanced_clean %>%
+  select(-proto)
+
+```
+
+
+```{r}
+summary(df_enhanced_clean)
+
+df_enhanced_clean %>%
+  summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "missing_percent") %>%
+  filter(missing_percent > 0) %>%
+  arrange(desc(missing_percent))
+```
+
+# Post-Cleaning Analysis
+
+```{r}
+df_enhanced_clean %>%
+  summarise(across(everything(), ~ n_distinct(.))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "n_unique") %>%
+  filter(n_unique == 1)
+
+```
+
+## Correlation Analysis
+```{r}
+# Convert relevant columns to numeric
+df_num <- df_enhanced_clean %>%
+  mutate(across(everything(), as.numeric))
+
+# Compute correlation matrix
+cor_matrix <- cor(df_num, use = "complete.obs")
+
+# Plot with corrplot
+library(corrplot)
+corrplot(cor_matrix, method = "color", type = "upper", 
+         tl.cex = 0.6, tl.col = "black", diag = FALSE)
+
+```
+```{r}
+df_enhanced_clean
+```
+```{r}
+colnames(df_enhanced_clean)
+ncol(df_enhanced_clean)
+```
+
+After cleaning and removing low var columns after imputation, there are a total of 24 attributes that could be used for modeling. 
+
