@@ -171,7 +171,9 @@ df %>% summary()
 print("Column names:")
 df %>% names()
 ```
+
 ## Check for missing values
+
 ```{r}
 # df %>%
 #   summarise(across(everything(), ~ sum(is.na(.)))) %>%
@@ -190,6 +192,117 @@ missing_pct %>%
 
 ```
 
-There are attributes that are missing > 50% of the data. 
+There are 19 attributes that are missing \> 50% of the data.
 
+### Variables with 100% missingness
 
+| Column    | Description                                         |
+|-----------|-----------------------------------------------------|
+| `pncaden` | Sum of painexer, relrest, etc.                      |
+| `restckm` | Resting cardiokinetic measurement (**irrelevant**)  |
+| `exerckm` | Exercise cardiokinetic measurement (**irrelevant**) |
+| `restef`  | Resting radionuclide ejection fraction              |
+| `restwm`  | Rest wall motion abnormality (0–3)                  |
+| `exeref`  | Exercise radionuclide ejection fraction             |
+| `exerwm`  | Exercise wall motion                                |
+| `earlobe` | (**Not used**)                                      |
+| `junk`    | (**Junk — not used**)                               |
+
+### Variables with high missingness (\>90%)
+
+| Column | Missing % | Description |
+|----|----|----|
+| `years` | 98.37% | Years as a smoker |
+| `famhist` | 98.37% | Family history of coronary artery disease (1 = yes; 0 = no) |
+| `ca` | 95.93% | Number of major vessels (0–3) colored by fluoroscopy |
+| `dm` | 93.50% | History of diabetes (1 = yes; 0 = no) |
+| `cigs` | 91.06% | Cigarettes per day |
+
+### Variables with moderate missingness (60-81%)
+
+| Column    | Missing % | Description                                            |
+|-----------|-----------|--------------------------------------------------------|
+| `smoke`   | 81.30%    | Smoker (1 = yes; 0 = no)                               |
+| `thalpul` | 78.86%    | (**Not used**)                                         |
+| `rldv5`   | 62.60%    | Height at rest                                         |
+| `rldv5e`  | 62.60%    | Height at peak exercise                                |
+| `fbs`     | 60.98%    | Fasting blood sugar \> 120 mg/dl (1 = true; 0 = false) |
+
+```{r}
+# drop col with >50% missing
+df <- df %>%
+  select(-all_of(c(
+    "pncaden", "restckm", "exerckm", "restef", "restwm", "exeref", "exerwm", "earlobe", "junk",
+    "years", "famhist", "ca", "dm", "cigs", "smoke", "thalpul", "rldv5", "rldv5e", "fbs"
+  )))
+
+```
+
+```{r}
+# check missing values left
+df %>%
+  summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "missing_percent") %>%
+  filter(missing_percent > 0) %>%
+  arrange(desc(missing_percent))
+```
+
+## Compare attributes to ML attributes
+
+### Identify columns not in ML
+
+```{r}
+# list of attributes used in ML
+ml_vars <- c(
+  "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg", "thalach",
+  "exang", "oldpeak", "slope", "ca", "thal", "num"
+)
+
+# identify columns not in ml_vars
+extra_vars <- setdiff(names(df), ml_vars)
+extra_vars
+length(extra_vars)
+```
+
+There are a total of 45 extra attributes that were not used in the ML dataset.
+
+### Identify columns missing
+
+```{r}
+# missing in df
+missing_df <- setdiff(ml_vars, names(df))
+missing_df
+```
+
+The variables *fbs* and *ca* were dropped because it have \>50% missingness. These were in the original ML dataset.
+
+These variables: id, ccf, name, and dummy, are identifiers and would not be useful in modeling.
+
+The following charts show the variables left alongside their description. ChatGPT included a column for "Usefulness"
+
+#### Symptom or ECG-related
+
+The following variables are labeled with their description.
+
+| Variable | Description | Usefulness |
+|----|----|----|
+| `painloc` | Chest pain location (1 = substernal) | ⚠️ Rarely used in modeling |
+| `painexer` | Pain provoked by exertion | ⚠️ Could support chest pain analysis |
+| `relrest` | Pain relieved by rest | ⚠️ Related to angina symptoms |
+| `htn` | Hypertension | ✅ Clinically relevant — consider keeping |
+| `dig` | Digitalis used during ECG | ✅ Medication use — may indicate severity |
+| `prop` | Beta blockers used during ECG | ✅ Similar reason as above |
+| `nitr` | Nitrates used during ECG | ✅ Indicates angina |
+| `pro` | Calcium channel blocker during ECG | ⚠️ Rarely studied, possible proxy |
+| `diuretic` | Diuretic use during ECG | ⚠️ Associated with hypertension/CHF |
+| `xhypo` | Exercise-induced hypotension | ⚠️ Potentially useful for ischemia |
+
+#### Test/Procedure Timing & Protocol
+
+| Variable | Description | Usefulness |
+|----|----|----|
+| `ekgmo`, `ekgday`, `ekgyr` | Date of exercise ECG | ❌ Drop unless doing time-based analysis |
+| `proto` | Protocol used during exercise test (1 = Bruce, etc.) | ⚠️ Some labs use this |
+| `thaldur`, `thaltime`, `met` | Exercise performance measures (duration, METs) | ✅ Important in functional capacity evaluation |
+| `thalrest` | Resting heart rate | ✅ Could affect stress test outcomes |
+| `tpeakbps`, `tpeakbpd`, `trestbpd` | Blood pressure values | ✅ Potentially informative for cardiac load |
