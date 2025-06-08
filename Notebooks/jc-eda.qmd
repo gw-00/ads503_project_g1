@@ -148,7 +148,7 @@ head(data)
 dim(data)
 ```
 
-Per the *heart-disease.names* file, the Switzerland dataset contains 123 instances and 76 attributes. This confirms that the dataset read from the *.data* file was imported correctly.
+Per the *heart-disease.names* file, the Switzerland data set contains 123 instances and 76 attributes. This confirms that the data set read from the *.data* file was imported correctly.
 
 ### Export data to RDS file
 

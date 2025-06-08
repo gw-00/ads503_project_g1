@@ -22,7 +22,7 @@ Publication Request:
       names of the principal investigator responsible for the data collection
       at each institution.  They would be:
 
-       1. Hungarian Institute of Cardiology. Budapest: Andras Janosi, M.D.
+       1. Hungarian Institute of Cardiology. Budapest: Andras Janosi, M.Dheart-disesase.
        2. University Hospital, Zurich, Switzerland: William Steinbrunn, M.D.
        3. University Hospital, Basel, Switzerland: Matthias Pfisterer, M.D.
        4. V.A. Medical Center, Long Beach and Cleveland Clinic Foundation:
@@ -141,7 +141,7 @@ Publication Request:
         hospital)
      11 htn
      12 chol: serum cholestoral in mg/dl
-     13 smoke: I believe this is 1 = yes; 0 = no (is or is not a smoker)
+     13 smoke: 1 = yes; 0 = no (is or is not a smoker)
      14 cigs (cigarettes per day)
      15 years (number of years as a smoker)
      16 fbs: (fasting blood sugar > 120 mg/dl)  (1 = true; 0 = false)
