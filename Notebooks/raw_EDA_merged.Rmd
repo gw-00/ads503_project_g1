@@ -197,7 +197,7 @@ colnames(sw_df_raw) <- full_cols
 
 # Step 6: Replace -9 with NA
 sw_df_raw <- sw_df_raw %>%
-  mutate(across(where(is.character), ~ na_if(.x, "-9"))) %>%   # character cols
+  mutate(across(where(is.character), ~ na_if(.x, "-9"))) %>%   # character columns
   mutate(across(where(is.numeric), ~ na_if(.x, -9))) %>%       # numeric columns
   mutate(location = "switzerland")
 
