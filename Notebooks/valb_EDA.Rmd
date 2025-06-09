@@ -202,12 +202,6 @@ va_df$famhist <- factor(va_df$famhist,
                         levels = c(0, 1), 
                         labels = c("No", "Yes")
                         )
-#famhist
-#unique(va_df$famhist)
-va_df$famhist <- factor(va_df$famhist,
-                        levels = c(0, 1), 
-                        labels = c("No", "Yes")
-                        )
 #restecg
 #unique(va_df$restecg)
 va_df$restecg <- factor(va_df$restecg,
@@ -223,7 +217,7 @@ va_df$dig <- factor(va_df$dig,
 #prop
 #unique(va_df$prop)
 # find the number of 22's a feature outside the range/
-sum(va_df$prop == 22, na.rm = TRUE)
+#sum(va_df$prop == 22, na.rm = TRUE)
 # convert the 22 to NA
 va_df <- va_df %>%
   mutate(prop = ifelse(prop == 22, NA, prop))
@@ -257,21 +251,21 @@ va_df$proto <- factor(va_df$proto,
                      labels = c("No", "Yes")
                      )
 #exang
-unique(va_df$exang)
+#unique(va_df$exang)
 va_df$exang <- factor(va_df$exang,
                      levels = c(0, 1),
                      labels = c("No", "Yes")
                      )
 #xhypo
-unique(va_df$xhypo)
+#unique(va_df$xhypo)
 va_df$xhypo <- factor(va_df$xhypo,
                      levels = c(0, 1),
                      labels = c("No", "Yes")
                      )
 #slope
-unique(va_df$slope)
+#unique(va_df$slope)
 # check count of 0 valuyes
-sum(va_df$slope == 0, na.rm = TRUE)
+#sum(va_df$slope == 0, na.rm = TRUE)
 # replace 0 with NA
 va_df <- va_df %>%
   mutate(slope = ifelse(slope == 0, NA, slope))
@@ -292,7 +286,7 @@ va_df$restwm <- factor(va_df$restwm,
                      ordered = TRUE
                      )
 #thal
-unique(va_df$thal)
+#unique(va_df$thal)
 # examine 1, 2, 5 values which are not in the documentation
 # check count of 1,2,5 values
 #sum(va_df$thal == 1, na.rm = TRUE)
@@ -306,8 +300,33 @@ va_df <- va_df %>%
 
 ```
 
-## Initial EDA
+## Missing Data Analysis
 
-```{r EDA}
-
+```{r missing values}
+## initial missing value summary stats
+# get counts of missing per columns
+colSums(is.na(va_df))
+# percentage of missing in columns
+round(colMeans(is.na(va_df)) * 100, 2)
+# get the columns with greater than 50% of missing values
+features_gtr50_na <- names(which(colMeans(is.na(va_df)) > 0.5)) 
+features_gtr50_na
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
