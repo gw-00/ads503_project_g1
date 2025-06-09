@@ -19,9 +19,10 @@ library(ggplot2)
 library(corrplot)
 library(readr)
 library(dplyr)
+library(here)
 ```
 
-```{r global variables}
+```{r global_variables}
 # set the column names per the heart-disease.names text file
 full_cols <- c(
   "id",       # 1. patient ID
@@ -101,7 +102,7 @@ full_cols <- c(
   "junk",     # 75. not used
   "name"      # 76. last name (dummy string)
 )
-```
+``` 
 
 ## Data Importing
 
@@ -144,6 +145,34 @@ va_df_raw$location <- "VA Long Beach"
 #### Switzerland
 
 ```{r Switzerland}
+# Generative AI used to write code to read in .data file
+# Step 1: Read the file
+lines <- readLines(here("Data", "Raw/switzerland.data"))
 
+# Step 2: Combine every 10 lines per patient
+patient_blocks <- split(lines, ceiling(seq_along(lines) / 10))
+
+# Step 3: Parse each block into numeric + name
+records <- map(patient_blocks, function(block) {
+  tokens <- str_split(paste(block, collapse = " "), "\\s+")[[1]]
+  name_value <- tail(tokens, 1)                      # last value is the name
+  numeric_values <- as.numeric(tokens[-length(tokens)])
+  c(numeric_values, name_value)                     # combine numeric + name
+})
+
+# Step 4: Combine into data frame
+sw_df_raw <- do.call(rbind, records) %>% 
+  as.data.frame(stringsAsFactors = FALSE)
+
+# Step 5: Assign column names
+colnames(sw_df_raw) <- full_cols
+
+# Step 6: Replace -9 with NA
+sw_df_raw <- sw_df_raw %>%
+  mutate(across(where(is.character), ~ na_if(.x, "-9"))) %>%   # character columns
+  mutate(across(where(is.numeric), ~ na_if(.x, -9))) %>%       # numeric columns
+  mutate(location = "switzerland")
+
+head(sw_df_raw)
 ```
 ``` {r }
