@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-This document will be responsible for extracting the `long-beach-va.data` file containing the raw data et, comprising **200 patient records** with **76 attributes**, including the target variable. The data is stored in an unconventional format: although it's a plain text file with space-separated values, **each patient record spans 10 rows**, and there are no header names provided in the data set specifically. The end of each record is indicated by the final field labeled `"name"`.
+This document will be responsible for extracting all of the raw data from the `long-beach-va.data`, `hungarian.data`, `switzerland.data`, and `cleveland.data` files containing the raw data sets and merging them into one data set. Once this has been accomplished Exploratory Data Analysis (EDA) will be performed on the entire merged data. Comprising **200 patient records** with **76 attributes**, including the target variable. The data is stored in an unconventional format: although it's a plain text file with space-separated values, **each patient record spans 10 rows**, and there are no header names provided in the data set specifically. The end of each record is indicated by the final field labeled `"name"`.
 
 ## Importing Libraries
 ```{r libraries}

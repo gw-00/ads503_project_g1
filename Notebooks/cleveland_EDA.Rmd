@@ -105,18 +105,25 @@ full_cols <- c(
 ## Data Importing
 
 ```{r}
-# using readLines, to read in each line of the long-beach-va.data file
+# using readLines, to read in each line of the cleveland.data file
 # read_table, read_csv proved difficult to use to extract
 # outline is to use the occurrence of 'name' to distinguish unique observations
 # extract all the lines
-raw_lines <- readLines("../Data/Raw/cleveland.data")
+clvd_raw_lines <- readLines("../Data/Raw/cleveland.data")
+clvd_raw_lines
 # merge all lines into one string
-all_text <- paste(raw_lines, collapse = " ")
-all_text
-# split each observation on name
-obs <- strsplit(all_text, " name ")[[1]]
+clvd_all_text <- paste(clvd_raw_lines, collapse = " ")
+clvd_all_text
+grepl("name", clvd_all_text)
+typeof(clvd_all_text)
 
-record_list <- map(obs, ~ {
+
+
+# split each observation on name
+clvd_obs <- strsplit(clvd_all_text, " name ")[[1]]
+clvd_obs
+
+clvd_record_list <- map(clvd_obs, ~ {
   toks <- strsplit(.x, "\\s+")[[1]] # split strings at whitespace
   toks <- toks[toks != ""]  #empty token removal
   stopifnot(length(toks) == 75)  
@@ -124,7 +131,31 @@ record_list <- map(obs, ~ {
              stringsAsFactors = FALSE)
 })
 # bind the rows
-clvd_df_raw <- bind_rows(record_list)
+clvd_df_raw <- bind_rows(clvd_record_list)
 # assign column names but leave out name 
 colnames(clvd_df_raw) <- full_cols[1:75]
 ```
+
+This is another approach that I tried reading as binaries but I am honestly at a loss for how to handle this raw file.
+
+```{r}
+
+con <- file("../Data/Raw/cleveland.data", "rb")  # Open in binary mode
+raw_lines <- character()  # Empty vector to store lines
+
+repeat {
+  line <- readLines(con, n = 1, warn = FALSE)
+  if (length(line) == 0) break
+  line <- gsub("\0", "", line, fixed = TRUE)  # Remove null bytes per line
+  raw_lines <- c(raw_lines, line)
+}
+close(con)
+
+# Merge into one string
+clvd_all_text <- paste(raw_lines, collapse = " ")
+
+# Split on 'name' token (as verified by you manually)
+clvd_obs <- strsplit(clvd_all_text, " name ")[[1]]
+```
+
+
