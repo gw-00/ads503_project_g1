@@ -108,7 +108,7 @@ full_cols <- c(
 
 #### VA Long Beach
 
-```{r VA_LV importing}
+```{r VA_lb_importing}
 # using readLines, to read in each line of the long-beach-va.data file
 # read_table, read_csv proved difficult to use to extract
 # outline is to use the occurrence of 'name' to distinguish unique observations
@@ -156,7 +156,7 @@ records <- map(patient_blocks, function(block) {
 hu_df_raw <- do.call(rbind, records) %>% 
   as.data.frame(stringsAsFactors = FALSE)
 hu_df_raw <- hu_df_raw %>% slice(-295)    ## sliced out the blank row 295th
-dim(hu_df_raw)
+#dim(hu_df_raw)
 
 # Step 5: Assign column names
 colnames(hu_df_raw) <- full_cols
@@ -167,12 +167,12 @@ hu_df_raw <- hu_df_raw %>%
   mutate(across(where(is.numeric), ~ na_if(.x, -9))) %>%       # numeric columns
   mutate(location = "Hungary")
 
-head(hu_df_raw)
+#ead(hu_df_raw)
 ```
 
 #### Switzerland
 
-```{r Switzerland}
+```{r Switzerland_importing}
 # Generative AI used to write code to read in .data file
 # Step 1: Read the file
 lines <- readLines(here("Data", "Raw/switzerland.data"))
@@ -201,11 +201,76 @@ sw_df_raw <- sw_df_raw %>%
   mutate(across(where(is.numeric), ~ na_if(.x, -9))) %>%       # numeric columns
   mutate(location = "switzerland")
 
-head(sw_df_raw)
+#head(sw_df_raw)
+```
+
+#### Cleveland
+
+``` {r cleveland_importing}
+# using readLines, to read in each line of the cleveland.data file
+# read_table, read_csv proved difficult to use to extract
+# outline is to use the occurrence of 'name' to distinguish unique observations
+# extract all the lines
+clvd_raw_lines <- readLines("../Data/Raw/cleveland.data", 
+                            warn = FALSE)
+#clvd_raw_lines
+# merge all lines into one string
+clvd_all_text <- paste(clvd_raw_lines, collapse = " ")
+# remove the corrupted tail end 
+clvd_all_text <- substr(clvd_all_text, 
+                        start = 1,
+                        stop = 56933)
+#clvd_all_text
+# split each observation on name
+clvd_obs <- strsplit(clvd_all_text, " name ")[[1]]
+#clvd_obs
+# map obs to record list
+clvd_record_list <- map(clvd_obs, ~ {
+  toks <- strsplit(.x, "\\s+")[[1]] # split strings at whitespace
+  toks <- toks[toks != ""]  #empty token removal
+  stopifnot(length(toks) == 75)  
+  data.frame(matrix(toks, nrow = 1), 
+             stringsAsFactors = FALSE)
+})
+# bind the rows
+clvd_df_raw <- bind_rows(clvd_record_list)
+# assign column names but leave out name 
+colnames(clvd_df_raw) <- full_cols[1:75]
+# add name column and location column in
+clvd_df_raw$name <- "name"
+clvd_df_raw$location <- "Cleveland"
+```
+
+## Data Merging
+
+```{r merging_data_sets}
+# bind the rows and merge the df on top of each other
+merged_df <- bind_rows(clvd_df_raw,
+                       hu_df_raw,
+                       sw_df_raw,
+                       va_df_raw)
+#merged_df
 ```
 
 
-``` {r }
+## Data Cleaning
+
+
+```{r data_cleaning}
+# remove unnecessary columns
+
+```
+
+
+
+## Exploratory Data Analysis
+
+```{r EDA}
 
 
 ```
+
+
+
+
+

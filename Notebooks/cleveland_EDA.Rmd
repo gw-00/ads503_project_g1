@@ -113,16 +113,15 @@ clvd_raw_lines <- readLines("../Data/Raw/cleveland.data")
 clvd_raw_lines
 # merge all lines into one string
 clvd_all_text <- paste(clvd_raw_lines, collapse = " ")
-clvd_all_text
-grepl("name", clvd_all_text)
-typeof(clvd_all_text)
-
-
-
+# remove the corrupted tail end 
+clvd_all_text <- substr(clvd_all_text, 
+                        start = 1,
+                        stop = 56933)
+#clvd_all_text
 # split each observation on name
 clvd_obs <- strsplit(clvd_all_text, " name ")[[1]]
-clvd_obs
-
+#clvd_obs
+# map obs to record list
 clvd_record_list <- map(clvd_obs, ~ {
   toks <- strsplit(.x, "\\s+")[[1]] # split strings at whitespace
   toks <- toks[toks != ""]  #empty token removal
@@ -134,28 +133,8 @@ clvd_record_list <- map(clvd_obs, ~ {
 clvd_df_raw <- bind_rows(clvd_record_list)
 # assign column names but leave out name 
 colnames(clvd_df_raw) <- full_cols[1:75]
+
+# add name column and location column in
+clvd_df_raw$name <- "name"
+clvd_df_raw$location <- "Cleveland"
 ```
-
-This is another approach that I tried reading as binaries but I am honestly at a loss for how to handle this raw file.
-
-```{r}
-
-con <- file("../Data/Raw/cleveland.data", "rb")  # Open in binary mode
-raw_lines <- character()  # Empty vector to store lines
-
-repeat {
-  line <- readLines(con, n = 1, warn = FALSE)
-  if (length(line) == 0) break
-  line <- gsub("\0", "", line, fixed = TRUE)  # Remove null bytes per line
-  raw_lines <- c(raw_lines, line)
-}
-close(con)
-
-# Merge into one string
-clvd_all_text <- paste(raw_lines, collapse = " ")
-
-# Split on 'name' token (as verified by you manually)
-clvd_obs <- strsplit(clvd_all_text, " name ")[[1]]
-```
-
-
