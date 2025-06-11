@@ -1,0 +1,111 @@
+---
+title: "2_EDA"
+output: pdf_document
+date: "2025-06-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Cleaning and Exploratory Data Analysis
+
+This R markdown document will be used to perform Exploratory Data Analysis (EDA) on the merged_df_raw that was developed in the previous workbook `1_data_extraction.Rmd`. 
+
+
+
+
+## Data Importing
+
+```{r libraries}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(corrplot)
+```
+
+
+```{r data_import}
+merged_df <- read_csv('../Data/Raw/merged_df_raw.csv')
+head(merged_df)
+```
+## Data Cleaning
+
+This below section of code starts by removing columns that are unused as indicated by the hear-disease.names text file which serves as a data dictionary and source for information on all the data sets. Once the explicitly unnecessary columns are removed, we convert the -9's and -9.0's into NA values and set a threshold for feature removal of if the feature is missing more than 60% of the observations it is immediately dropped. Once these features have been removed we focus on removing near zero variance features.
+
+```{r data_cleaning}
+# remove unnecessary columns as indicated in heart-disease.names
+# cols marked as not used or dummy variables
+not_used_dummy_var <- c(
+  "id", "ccf", "dummy", "restckm", "exerckm", "thalsev", "thalpul",
+  "earlobe", "lvx1", "lvx2", "lvx3", "lvx4", "lvf", "cathef", "junk", "name"
+)
+
+df_cleaning <- merged_df %>%
+  select(-all_of(not_used_dummy_var))
+
+# convert -9 to NA
+df_cleaning <- df_cleaning %>%
+  mutate(across(where(is.character), ~ na_if(.x, "-9"))) %>%   # character columns
+  mutate(across(where(is.numeric), ~ na_if(.x, -9)))           # numeric columns
+#Get NA count
+sum(is.na(df_cleaning))
+#get dimensions of the data
+df_cleaning %>% dim
+#reexamine the head
+df_cleaning %>% head()
+
+# calculate percentage missing
+missing_threshold <- 60
+missing_pct <- df_cleaning %>%
+  summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "missing_percent") %>%
+  arrange(desc(missing_percent))
+
+# filter by col missing
+missing_cols <- missing_pct %>%
+  filter(missing_percent > missing_threshold)
+var_missing_gt_60 <- missing_cols$column
+
+missing_cols
+# drop cols missing greater than threshold
+df_cleaning <- df_cleaning %>%
+  select(-all_of(var_missing_gt_60))
+dim(df_cleaning)
+
+# check near zero variance vars
+nzv_cols <- nearZeroVar(df_cleaning %>% 
+    select(-num), saveMetrics = TRUE)
+nzv_cols %>% filter(nzv == TRUE)
+
+# get column names of nzv
+nzv_names <- nzv_cols %>%
+  filter(nzv ==TRUE) %>%
+  rownames()
+nzv_names
+
+# remove nzv variables
+df_cleaning <- df_cleaning %>%
+  select(-all_of(nzv_names))
+
+# add back ca column for EDA
+df_cleaning$ca <- merged_df$ca
+df_cleaning$ca <- na_if(df_cleaning$ca, "-9")
+
+dim(df_cleaning)
+
+# export to file
+write.csv(df_cleaning, here("Data/Clean", "heart_disease_cleaned.csv"), row.names = FALSE)
+```
+
+In the process of removing variables with >60% missing data, the `ca`
+variable, which represents _Major vessels via fluoroscopy_ was removed
+due to having 67.6% missing data. This variable was part of the 
+_cleveland-14_ set. It has re-added to the final data set after _nzv_ variables
+were removed. 
+
+## Exploratory Data Analysis
+
+```{r EDA}
+
+```
