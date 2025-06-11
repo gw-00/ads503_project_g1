@@ -12,9 +12,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This R markdown document will be used to perform Exploratory Data Analysis (EDA) on the merged_df_raw that was developed in the previous workbook `1_data_extraction.Rmd`. 
 
-
-
-
 ## Data Importing
 
 ```{r libraries}
