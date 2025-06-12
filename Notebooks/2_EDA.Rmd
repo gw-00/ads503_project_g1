@@ -389,7 +389,7 @@ show_densityplot(df, cigs)
 ggplot(df, aes(x = years, y = cigs)) + geom_point()
 cor(df$years, df$cigs, use = "complete.obs", method = "pearson")
 
-# create smoker_profile feature
+# create smoke_profile feature
 df <- df %>%
   mutate(
     # Categorize smoking duration
@@ -422,6 +422,10 @@ df <- df %>%
     # Optional: convert to factor
     smoke_profile = factor(smoke_profile)
   )
+
+# drop helper columns
+df <- df %>%
+  select(-c(cigs_cat, years_cat))
 ```
 #### rldv5
 ```{r rldv5}
@@ -447,37 +451,112 @@ df$famhist <- factor(df$famhist)
 
 show_barplot(df, famhist)
 ```
-
+### Drop originaal columns after imputation
 ```{r drop_imputed_gt40}
-
+# list of cols
 missing_gt40 <- c('ca', 'thal', 'thaltime', 'years', 'rldv5', 'famhist', 'cigs')
 imputed_cols <-c('ca_imputed', 'ca_missing', 'thal_imputed', 'thal_missing', 
-                 'thaltime_missing', 'thaltime_imputed', 'smoker_profile', 
+                 'thaltime_missing', 'thaltime_imputed', 'smoke_profile', 
                  'rldv5_missing', 'rldv5_imputed', 'famhist')
-
+# drop cols that were imputed
 df1 <- df %>%
   select(-all_of(missing_gt40))
 
+# drop date / time columns
+drop_cols <- c('cmo', 'cday', 'cyr', 'ekgmo', 'ekgday', 'ekgyr')
+df1 <- df1 %>%
+  select(-all_of(drop_cols))
+
+# compare dimensions
 dim(df_cleaning)
 dim(df)
 dim(df1)
 
 colnames(df1)
+
+head(df1)
 ```
 
+### Binary Variables
+
 ```{r remaining_cols}
-remaining_cols <- setdiff(names(df1), imputed_cols)
-remaining_cols
-summary(
-  df %>% 
-    select(all_of(remaining_cols))
-  )
+# list binary var
+df1 %>% 
+  summarise(across(everything(), ~ n_distinct(na.omit(.)))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "n_unique") %>%
+  filter(n_unique == 2)
+# get binary var names
+binary_vars <- df1 %>%
+  select(where(~ n_distinct(na.omit(.)) == 2)) %>%
+  names()
 
-drop_cols <- c('cmo', 'cday', 'cyr')
-df1 <- df %>%
-  select(-all_of(drop_cols))
+# convert binary vars to factors
+df1[binary_vars] <- lapply(df1[binary_vars], as.factor)
+# convert sex to male/female
+df$sex <- factor(df$sex, levels = c(0, 1), labels = c("female", "male"))
 
+head(df1)
+```
+
+### Numerical Variables 
+
+```{r numerical_with_na}
+numeric_vars <- df1 %>%
+  select(where(is.numeric)) %>%
+  names() 
+
+numeric_na <- df1 %>%
+  select(where(is.numeric)) %>%
+  select(where(~ any(is.na(.)))) %>%
+  names()
+
+numeric_vars
+df1[numeric_na]
+
+# impute w median and create missingness columns
+for (var in numeric_na) {
+  median_val <- median(df1[[var]], na.rm = TRUE)
+  df1[[paste0(var, "_missing")]] <- ifelse(is.na(df1[[var]]), 1, 0)
+  df1[[paste0(var, "_imputed")]] <- ifelse(is.na(df1[[var]]), median_val, df1[[var]])
+}
+
+# drop imputed columns
+df1 <- df1 %>%
+  select(-all_of(numeric_na))
 dim(df1)
 ```
 
+
+### Categorical Variables
+```{r categorical_with_na}
+
+categorical_na <- df1 %>%
+  select(where(~ is.factor(.) || is.character(.))) %>%
+  select(where(~ any(is.na(.)))) %>%
+  names()
+
+# impute with Missing
+for (var in categorical_na) {
+  df1[[var]] <- as.character(df1[[var]])
+  df1[[var]][is.na(df1[[var]])] <- "Missing"
+  df1[[var]] <- factor(df1[[var]])
+}
+dim(df1)
+
+anyNA(df1)
+```
+#### Create binary for target (num) 
+```{r}
+# create binary target 0 = no disease, 1 - 3 = varying levels
+df1 <- df1 %>%
+  mutate(
+    has_disease = factor(ifelse(num == 0, "No", "Yes"), levels = c("No", "Yes"))
+  )
+
+head(df1)
+```
+```{r export_imputed}
+saveRDS(df1, here("Data/Clean", "heart_disease_final.rds"))
+
+```
 
