@@ -298,10 +298,8 @@ gg_miss_upset(df, nsets = 10)
 - based on upset table, `ca`, `thal`, and `thaltime` are missing together
 - missingness might not be random
 
-```{r ca}
-# create missingness columns for cleveland-14 variables
-# histogram
-
+```{r custom_functions}
+# function for showing histogram
 show_histogram <- function(dataframe, feature) {
   ggplot(dataframe, aes(x = {{feature}})) + 
     geom_histogram(binwidth = 1, fill = "steelblue", color = "white") + 
@@ -312,8 +310,7 @@ show_histogram <- function(dataframe, feature) {
   ) + 
   theme_minimal()
 }
-
-
+# function for showing desnsity plot
 show_densityplot <- function(dataframe, feature) {
   ggplot(df, aes(x = {{ feature }})) +
     geom_density(fill = "darkorange", alpha = 0.5) +
@@ -324,6 +321,20 @@ show_densityplot <- function(dataframe, feature) {
     ) +
     theme_minimal()
 }
+
+show_barplot <- function(dataframe, feature) {
+  ggplot(dataframe, aes(x = {{feature}})) +
+  geom_bar(fill = "steelblue") +
+  labs(
+    title = paste("Bar Plot of", rlang::as_label(enquo(feature))), 
+      x = rlang::as_label(enquo(feature)),  
+    y = "Count") +
+  theme_minimal()
+}
+```
+
+#### ca
+```{r ca}
 
 show_histogram(df, ca)
 show_densityplot(df, ca)
@@ -336,6 +347,7 @@ df <- df %>%
   )
 ```
 
+#### thal
 ```{r thal}
 show_histogram(df, thal)
 show_densityplot(df, thal)
@@ -349,6 +361,7 @@ df <- df %>%
   )
 ```
 
+#### thaltime
 ```{r thaltime}
 summary(df$thaltime)
 sort(table(df$thaltime), decreasing = TRUE)
@@ -363,5 +376,75 @@ df <- df %>%
     thaltime_missing = ifelse(is.na(thaltime), 1, 0),
     thaltime_imputed = ifelse(is.na(thaltime), median(thaltime, na.rm = TRUE), thaltime)
   )
+```
+
+#### years + cigs
+```{r}
+show_histogram(df, years)
+show_densityplot(df, years) 
+
+show_histogram(df, cigs)
+show_densityplot(df, cigs)
+
+ggplot(df, aes(x = years, y = cigs)) + geom_point()
+cor(df$years, df$cigs, use = "complete.obs", method = "pearson")
+
+# create smoker_profile feature
+df <- df %>%
+  mutate(
+    # Categorize smoking duration
+    years_cat = case_when(
+      is.na(years)        ~ "missing",
+      years == 0          ~ "non",
+      years <= 10         ~ "short",
+      years <= 20         ~ "medium",
+      years <= 40         ~ "long",
+      TRUE                ~ "very_long"
+    ),
+
+    # Categorize cigarette intensity
+    cigs_cat = case_when(
+      is.na(cigs)         ~ "missing",
+      cigs == 0           ~ "non",
+      cigs <= 10          ~ "light",
+      cigs <= 20          ~ "moderate",
+      cigs <= 40          ~ "heavy",
+      TRUE                ~ "very_heavy"
+    ),
+
+    # Combine into single profile
+    smoke_profile = case_when(
+      years_cat == "non" & cigs_cat == "non"             ~ "non",
+      years_cat == "missing" | cigs_cat == "missing"     ~ "missing",
+      TRUE                                                ~ paste0(cigs_cat, "_", years_cat)
+    ),
+
+    # Optional: convert to factor
+    smoke_profile = factor(smoke_profile)
+  )
+```
+#### rldv5
+```{r rldv5}
+show_histogram(df, rldv5)
+show_densityplot(df, rldv5)
+
+df <- df %>%
+  mutate(
+    rldv5_missing = ifelse(is.na(rldv5), 1, 0), 
+    rldv5_imputed = ifelse(is.na(rldv5), median(rldv5, na.rm = TRUE), rldv5)
+  )
+```
+
+#### famhist
+```{r famhist}
+show_barplot(df, famhist)
+unique(df$famhist)
+
+# replace NA with "Missing" 
+df$famhist <- as.character(df$famhist)
+df$famhist[is.na(df$famhist)] <- "Missing"
+df$famhist <- factor(df$famhist)
+
+show_barplot(df, famhist)
 ```
 
