@@ -285,7 +285,7 @@ aggr(df, numbers = TRUE, sortVars = TRUE, cex.axis = 0.7)
 gg_miss_upset(df, nsets = 10)
 ```
 
-### Variables Missing > 40%
+##### Variables Missing > 40%
 - ca: cleveland-14 variable - represents # of major vessels (0 - 3) colored by fluoroscopy.
 - thal: cleveland-14 variable - results from thallium stress test
 - thaltime: time duration for thallium stress test
@@ -294,7 +294,7 @@ gg_miss_upset(df, nsets = 10)
 - famhist: family history of coronary artery disease
 - cigs: cigarettes smoked per day
 
-### Upset
+##### Upset
 - based on upset table, `ca`, `thal`, and `thaltime` are missing together
 - missingness might not be random
 
@@ -357,7 +357,7 @@ table(df$thal)
 df <- df %>%
   mutate(
     thal_missing = ifelse(is.na(df$thal), 1, 0),
-    thal_imputed <- ifelse(is.na(df$thal), 3, df$thal) # mode imputation
+    thal_imputed = ifelse(is.na(df$thal), 3, df$thal) # mode imputation
   )
 ```
 
@@ -447,4 +447,37 @@ df$famhist <- factor(df$famhist)
 
 show_barplot(df, famhist)
 ```
+
+```{r drop_imputed_gt40}
+
+missing_gt40 <- c('ca', 'thal', 'thaltime', 'years', 'rldv5', 'famhist', 'cigs')
+imputed_cols <-c('ca_imputed', 'ca_missing', 'thal_imputed', 'thal_missing', 
+                 'thaltime_missing', 'thaltime_imputed', 'smoker_profile', 
+                 'rldv5_missing', 'rldv5_imputed', 'famhist')
+
+df1 <- df %>%
+  select(-all_of(missing_gt40))
+
+dim(df_cleaning)
+dim(df)
+dim(df1)
+
+colnames(df1)
+```
+
+```{r remaining_cols}
+remaining_cols <- setdiff(names(df1), imputed_cols)
+remaining_cols
+summary(
+  df %>% 
+    select(all_of(remaining_cols))
+  )
+
+drop_cols <- c('cmo', 'cday', 'cyr')
+df1 <- df %>%
+  select(-all_of(drop_cols))
+
+dim(df1)
+```
+
 
