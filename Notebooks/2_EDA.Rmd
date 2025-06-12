@@ -19,6 +19,9 @@ library(tidyverse)
 library(readr)
 library(ggplot2)
 library(corrplot)
+library(caret)
+library(here)
+library(naniar)
 ```
 
 
@@ -243,12 +246,13 @@ df_cleaning <- df_cleaning %>%
 
 # add back ca column for EDA
 df_cleaning$ca <- merged_df$ca
-df_cleaning$ca <- na_if(df_cleaning$ca, "-9")
+df_cleaning$ca <- na_if(df_cleaning$ca, -9)
 
 dim(df_cleaning)
 
 # export to file
 write.csv(df_cleaning, here("Data/Clean", "heart_disease_cleaned.csv"), row.names = FALSE)
+saveRDS(df_cleaning, here("Data/Clean", "heart_disease_cleaned.rds"))
 ```
 
 In the process of removing variables with >60% missing data, the `ca`
@@ -260,5 +264,104 @@ were removed.
 ## Exploratory Data Analysis
 
 ```{r EDA}
+df <- readRDS(here("Data/Clean", "heart_disease_cleaned.rds"))
+# head(df)
 
+missing_var <- df %>%
+  summarise(across(everything(), ~ mean(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "missing_pct")
+
+missing_var %>%
+  filter(missing_pct > 0) %>%
+  arrange(desc(missing_pct))
+
+# visualize missingness by variable
+gg_miss_var(df)
+
+# missingness patterns
+library(VIM)
+aggr(df, numbers = TRUE, sortVars = TRUE, cex.axis = 0.7)
+# missingness correlation
+gg_miss_upset(df, nsets = 10)
 ```
+
+### Variables Missing > 40%
+- ca: cleveland-14 variable - represents # of major vessels (0 - 3) colored by fluoroscopy.
+- thal: cleveland-14 variable - results from thallium stress test
+- thaltime: time duration for thallium stress test
+- years: number of years as a smoker
+- rldv5: height at rest
+- famhist: family history of coronary artery disease
+- cigs: cigarettes smoked per day
+
+### Upset
+- based on upset table, `ca`, `thal`, and `thaltime` are missing together
+- missingness might not be random
+
+```{r ca}
+# create missingness columns for cleveland-14 variables
+# histogram
+
+show_histogram <- function(dataframe, feature) {
+  ggplot(dataframe, aes(x = {{feature}})) + 
+    geom_histogram(binwidth = 1, fill = "steelblue", color = "white") + 
+  labs(
+    title = paste("Histogram of", rlang::as_label(enquo(feature))), 
+    x = rlang::as_label(enquo(feature)), 
+    y = "Count"
+  ) + 
+  theme_minimal()
+}
+
+
+show_densityplot <- function(dataframe, feature) {
+  ggplot(df, aes(x = {{ feature }})) +
+    geom_density(fill = "darkorange", alpha = 0.5) +
+    labs(
+      title = paste("Density Plot of", rlang::as_label(enquo(feature))), 
+      x = rlang::as_label(enquo(feature)), 
+      y = "Count"
+    ) +
+    theme_minimal()
+}
+
+show_histogram(df, ca)
+show_densityplot(df, ca)
+
+# impute with median and missingness flag
+df <- df %>%
+  mutate(
+    ca_missing = ifelse(is.na(ca), 1, 0),
+    ca_imputed = ifelse(is.na(ca), median(ca, na.rm = TRUE), ca)
+  )
+```
+
+```{r thal}
+show_histogram(df, thal)
+show_densityplot(df, thal)
+table(df$thal)
+
+# impute with mode and missingness flag
+df <- df %>%
+  mutate(
+    thal_missing = ifelse(is.na(df$thal), 1, 0),
+    thal_imputed <- ifelse(is.na(df$thal), 3, df$thal) # mode imputation
+  )
+```
+
+```{r thaltime}
+summary(df$thaltime)
+sort(table(df$thaltime), decreasing = TRUE)
+
+# histogram
+show_histogram(df, thaltime)
+show_densityplot(df, thaltime)
+
+# impute with median + missingness flag
+df <- df %>%
+  mutate(
+    thaltime_missing = ifelse(is.na(thaltime), 1, 0),
+    thaltime_imputed = ifelse(is.na(thaltime), median(thaltime, na.rm = TRUE), thaltime)
+  )
+```
+
