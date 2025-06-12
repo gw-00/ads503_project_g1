@@ -26,6 +26,162 @@ library(corrplot)
 merged_df <- read_csv('../Data/Raw/merged_df_raw.csv')
 head(merged_df)
 ```
+## Categorical Conversions
+
+```{r}
+## categorical features and their levels and labels
+#sex
+merged_df$sex <- factor(merged_df$sex, 
+                    levels = c(0, 1), 
+                    labels = c("Female", "Male")
+                    )
+#painloc
+#unique(merged_df$painloc)
+merged_df$painloc <- factor(merged_df$painloc,
+                        levels = c(0, 1), 
+                        labels = c("Otherwise", "Substernal")
+                        )
+#painexer
+#unique(merged_df$painexer)
+merged_df$painexer <- factor(merged_df$painexer,
+                        levels = c(0, 1), 
+                        labels = c("Otherwise", "Provoked by Exertion")
+                        )
+#relrest
+#unique(merged_df$relrest)
+merged_df$relrest <- factor(merged_df$relrest,
+                        levels = c(0, 1), 
+                        labels = c("Otherwise", "Relieved after rest")
+                        )
+#cp
+#unique(merged_df$cp)
+merged_df$cp <- factor(merged_df$cp,
+                        levels = c(1, 2, 3, 4), 
+                        labels = c("Typical Angina", "Atypical Angina", 
+                                   "Non-anginal Pain", "Asymptomatic"), 
+                   ordered = TRUE)
+#smoke
+#unique(merged_df$smoke)
+merged_df$smoke <- factor(merged_df$smoke,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#fbs
+#unique(merged_df$fbs)
+merged_df$fbs <- factor(merged_df$fbs,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#dm
+#unique(merged_df$dm)
+merged_df$dm <- factor(merged_df$dm,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#famhist
+#unique(merged_df$famhist)
+merged_df$famhist <- factor(merged_df$famhist,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#restecg
+#unique(merged_df$restecg)
+merged_df$restecg <- factor(merged_df$restecg,
+                        levels = c(0, 1, 2), 
+                        labels = c("Normal", "Abnormal", "Hypertrophy"), 
+                   ordered = TRUE)
+#dig
+#unique(merged_df$dig)
+merged_df$dig <- factor(merged_df$dig,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#prop
+#unique(merged_df$prop)
+# find the number of 22's a feature outside the range/
+#sum(merged_df$prop == 22, na.rm = TRUE)
+# convert the 22 to NA
+merged_df <- merged_df %>%
+  mutate(prop = ifelse(prop == 22, NA, prop))
+#create factor
+merged_df$prop <- factor(merged_df$prop,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#nitr
+#unique(merged_df$nitr)
+merged_df$nitr <- factor(merged_df$nitr,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#pro
+#unique(merged_df$pro)
+merged_df$pro <- factor(merged_df$pro,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#diuretic
+#unique(merged_df$diuretic)
+merged_df$diuretic <- factor(merged_df$diuretic,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#proto
+#unique(merged_df$proto)
+merged_df$proto <- factor(merged_df$proto,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#exang
+#unique(merged_df$exang)
+merged_df$exang <- factor(merged_df$exang,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#xhypo
+#unique(merged_df$xhypo)
+merged_df$xhypo <- factor(merged_df$xhypo,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#slope
+#unique(merged_df$slope)
+# check count of 0 valuyes
+#sum(merged_df$slope == 0, na.rm = TRUE)
+# replace 0 with NA
+merged_df <- merged_df %>%
+  mutate(slope = ifelse(slope == 0, NA, slope))
+# factor
+merged_df$slope <- factor(merged_df$slope,
+                     levels = c(1, 2, 3),
+                     labels = c("Upsloping", "Flat", "Downsloping"),
+                     ordered = TRUE
+                     )
+#restwm
+#unique(merged_df$restwm)
+# check count of 0 valuyes
+# factor
+merged_df$restwm <- factor(merged_df$restwm,
+                     levels = c(0, 1, 2, 3),
+                     labels = c("None", "Mild/Moderate", "Moderate/Severe", 
+                                "Akinesis"),
+                     ordered = TRUE
+                     )
+#thal
+#unique(merged_df$thal)
+# examine 1, 2, 5 values which are not in the documentation
+# check count of 1,2,5 values
+#sum(merged_df$thal == 1, na.rm = TRUE)
+#sum(merged_df$thal == 2, na.rm = TRUE)
+#sum(merged_df$thal == 5, na.rm = TRUE)
+# replace 1, 2, 5 with na
+merged_df <- merged_df %>%
+  mutate(thal = ifelse(thal == 1, NA, thal)) %>%
+  mutate(thal = ifelse(thal == 2, NA, thal)) %>%
+  mutate(thal = ifelse(thal == 5, NA, thal))
+```
+
+
 ## Data Cleaning
 
 This below section of code starts by removing columns that are unused as indicated by the hear-disease.names text file which serves as a data dictionary and source for information on all the data sets. Once the explicitly unnecessary columns are removed, we convert the -9's and -9.0's into NA values and set a threshold for feature removal of if the feature is missing more than 60% of the observations it is immediately dropped. Once these features have been removed we focus on removing near zero variance features.
