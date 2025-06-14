@@ -137,7 +137,7 @@ print(plot_bivariate_num(var))
 ```{r}
 for (var in num_vars) {
   formula <- reformulate("has_disease", response = var)
-  test_result <- t.test(formula, data = df1)
+  test_result <- t.test(formula, data = df)
   cat("=== T-test for", var, "===\n")
   print(test_result)
   cat("\n\n")
@@ -246,7 +246,8 @@ cramerv <- function(dataframe, var_list){
 cramerv(df, c("prop", "nitr", "pro", "diuretic", "exang"))
 cramerv(df, c("ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"))
 
-
+drop_colinearity_cols <- c("prop", "nitr", "pro", "diuretic", "laddist", 
+                           "cxmain", "om1", "rcaprox", "rcadist")
 ```
 
 Based on the results, each set of variables are moderate to highly correlated. 
@@ -295,8 +296,10 @@ selected_cat_vars
 ```{r}
 # combine selected variables
 included_vars <- c(selected_num_vars, selected_cat_vars)
+
 model_df <- df %>%
-  select(all_of(included_vars), has_disease)
+  select(all_of(included_vars), has_disease) %>%
+  select(-all_of(drop_colinearity_cols))
 
 str(model_df)
 ```
@@ -308,4 +311,4 @@ saveRDS(model_df, here("Data/Clean", "heart_disease_modeling.rds"))
 model_df %>% dim()
 ```
 
-The final modeling set has 899 observations and 36 features including the target variable. 
+The final modeling set has 899 observations and 27 features including the target variable. 
