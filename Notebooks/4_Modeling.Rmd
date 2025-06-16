@@ -21,7 +21,9 @@ library(pROC)
 ## Read in datasets
 ```{r}
 df_model <- readRDS(here("Data/Clean", "heart_disease_modeling.rds"))
+# doesn't have correalted feaures ^^
 df_final <- readRDS(here("Data/Clean", "heart_disease_final.rds"))
+#df_final has correlated features ^^
 
 seed <- 13579
 set.seed(seed)
@@ -37,19 +39,12 @@ table(df_model$has_disease)
 prop.table(table(df_model$has_disease))
 ```
 
-## Train/Test Split
-```{r}
-train_index <- createDataPartition(df_model$has_disease, p = 0.8, list = FALSE)
+## Global Parameter Setting
+```{r control_tuning_grids}
+# set global performance metric
+global_metric = "ROC"
 
-train_data <- df_model[train_index, ]
-test_data <- df_model[-train_index, ]
-
-```
-
-# Random Forest
-
-```{r}
-# train random forest model
+#resampling strategy
 ctrl <- trainControl(
   method = "cv", 
   number = 5, 
@@ -58,73 +53,23 @@ ctrl <- trainControl(
   verboseIter = FALSE
 )
 
-rfm_model <- train(
-  has_disease ~ ., 
-  data = train_data, 
-  method = "rf", 
-  trControl = ctrl, 
-  metric = "ROC", 
-  importance = TRUE
-)
+# Penalized Regression Grids
 
-levels(test_data$has_disease)
+# KNN Grids
 
-rfm_preds <- predict(rfm_model, test_data)
-confusionMatrix(rfm_preds, test_data$has_disease, positive = "Yes")
+# PLS Tuning (pretty sure none needed though)
 
-rfm_probs <- predict(rfm_model, test_data, type = "prob")
 
-varImp(rfm_model) %>%
-  plot()
 ```
 
+## Train/Test Split
 ```{r}
-# Predict on training data
-train_preds <- predict(rfm_model, train_data)
+train_index <- createDataPartition(df_model$has_disease, p = 0.8, list = FALSE)
 
-# Predict on test data
-test_preds <- predict(rfm_model, test_data)
-
-```
-
-```{r}
-# Training set performance
-train_cm <- confusionMatrix(train_preds, train_data$has_disease, positive = "Yes")
-print(train_cm)
-
-# Test set performance
-test_cm <- confusionMatrix(test_preds, test_data$has_disease, positive = "Yes")
-print(test_cm)
+train_data <- df_model[train_index, ]
+test_data <- df_model[-train_index, ]
 
 ```
-
-```{r}
-library(pROC)
-
-# Class probabilities
-train_probs <- predict(rfm_model, train_data, type = "prob")[, "Yes"]
-test_probs  <- predict(rfm_model, test_data, type = "prob")[, "Yes"]
-
-# ROC curves
-roc_train <- roc(train_data$has_disease, train_probs)
-roc_test  <- roc(test_data$has_disease, test_probs)
-
-# Print AUC
-cat("Train AUC:", auc(roc_train), "\n")
-cat("Test AUC:", auc(roc_test), "\n")
-
-# Optional: plot both curves
-plot(roc_train, col = "blue", main = "ROC Curves: Train vs Test")
-lines(roc_test, col = "red")
-legend("bottomright", legend = c("Train", "Test"), col = c("blue", "red"), lwd = 2)
-
-```
-```{r}
-cat("Train AUC:", auc(roc_train), "\n")
-cat("Test AUC:", auc(roc_test), "\n")
-
-```
-
 
 # Logistic Regression
 
@@ -155,6 +100,104 @@ auc(roc_glm)
 
 # Plot
 plot(roc_glm, main = "ROC Curve - Logistic Regression", col = "blue")
+
+```
+
+# Random Forest
+
+```{r}
+# create rf model
+rfm_model <- train(
+  has_disease ~ ., 
+  data = train_data, 
+  method = "rf", 
+  trControl = ctrl, 
+  metric = "ROC", 
+  importance = TRUE
+)
+
+levels(test_data$has_disease)
+
+rfm_preds <- predict(rfm_model, test_data)
+confusionMatrix(rfm_preds, test_data$has_disease, positive = "Yes")
+
+rfm_probs <- predict(rfm_model, test_data, type = "prob")
+
+varImp(rfm_model) %>%
+  plot()
+```
+
+```{r}
+# Predict on training data
+train_preds <- predict(rfm_model, train_data)
+
+# Predict on test data
+test_preds <- predict(rfm_model, test_data)
+```
+
+```{r}
+# Training set performance
+train_cm <- confusionMatrix(train_preds, train_data$has_disease, positive = "Yes")
+print(train_cm)
+
+# Test set performance
+test_cm <- confusionMatrix(test_preds, test_data$has_disease, positive = "Yes")
+print(test_cm)
+
+```
+
+```{r}
+# Class probabilities
+train_probs <- predict(rfm_model, train_data, type = "prob")[, "Yes"]
+test_probs  <- predict(rfm_model, test_data, type = "prob")[, "Yes"]
+
+# ROC curves
+roc_train <- roc(train_data$has_disease, train_probs)
+roc_test  <- roc(test_data$has_disease, test_probs)
+
+# Print AUC
+cat("Train AUC:", auc(roc_train), "\n")
+cat("Test AUC:", auc(roc_test), "\n")
+
+# Optional: plot both curves
+plot(roc_train, col = "blue", main = "ROC Curves: Train vs Test")
+lines(roc_test, col = "red")
+legend("bottomright", legend = c("Train", "Test"), col = c("blue", "red"), lwd = 2)
+
+```
+```{r}
+cat("Train AUC:", auc(roc_train), "\n")
+cat("Test AUC:", auc(roc_test), "\n")
+
+```
+
+# Penalized Classification (Darren)
+```{r}
+
+```
+
+# Linear Discriminant Analysis (Darren)
+
+```{r}
+lda_mod <- train(num ~ ., data = train,
+                 method = "lda",
+                 metric = "ROC",
+                 trControl = trainControl(method = "cv", number = 5))
+
+lda_mod
+```
+
+
+# Partial Least Squares Classification (Graham)
+
+```{r}
+
+```
+
+
+# K-Nearest Neighbors Classification (Graham)
+
+```{r}
 
 ```
 

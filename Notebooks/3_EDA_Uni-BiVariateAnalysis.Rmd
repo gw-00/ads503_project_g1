@@ -144,7 +144,6 @@ for (var in num_vars) {
 }
 ```
 
-
 ### Summary for numerical variables
 
 ```{r}
