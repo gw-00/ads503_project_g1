@@ -15,9 +15,9 @@ To get started with this project, please clone the repository into your local ma
 
 # Contributors
 
--   Graham Ward
--   Darren Chen
--   Jun Clemente
+-   [Graham Ward](https://github.com/gw-00)
+-   [Darren Chen](https://github.com/darrencheninfo)
+-   [Jun Clemente](https://github.com/junclemente)
 
 # Methods
 
@@ -81,3 +81,4 @@ Detrano, R., Janosi, A., Steinbrunn, W., Pfisterer, M., Schmid, J.-J., Sandhu, S
 
 1.  Project Slides
 2.  Document Link
+3.  Project Repo:[https://github.com/gw-00/ads503_project_g1](https://github.com/gw-00/ads503_project_g1)
