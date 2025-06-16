@@ -53,11 +53,25 @@ ctrl <- trainControl(
   verboseIter = FALSE
 )
 
+# Pre-processing Strategy
+process_strat <- NULL
+
+
 # Penalized Regression Grids
 
 # KNN Grids
+K_grid <- data.frame(
+  k = seq(1, 25, by = 2)
+)
 
 # PLS Tuning (pretty sure none needed though)
+
+
+
+# Results Table Creation
+# insert darrens code from Performance here and alter variables 
+
+
 
 
 ```
@@ -198,6 +212,69 @@ lda_mod
 # K-Nearest Neighbors Classification (Graham)
 
 ```{r}
+# fit the knn model
+knn_model <- train(
+  has_disease ~ .,
+  data = train_data,
+  method = "knn",
+  metric = global_metric,
+  tuneGrid = K_grid,
+  trControl = ctrl,
+  preProcess = process_strat
+)
 
+# get the best k via ROC
+best_k <- knn_model$bestTune
+#predictions
+knn_preds <- predict(knn_model, newdata = test_data)
+
+length(knn_preds)
+length(test_data$has_disease)
+
+#confusion matrix
+knn_confm <- confusionMatrix(knn_preds, 
+                             test_data$has_disease, 
+                             positive = "Yes")
+# show confusion matrix
+knn_confm
+#probabilities
+knn_probs <- predict(knn_model, 
+                     newdata = test_data,
+                     type = "prob")[, "Yes"]
+#roc
+roc_knn <- roc(test_data$has_disease,
+               knn_probs)
+#auc curve
+auc(roc_knn)
+
+#plot ROC across K
+ggplot(knn_model) + 
+  labs(title = "KNN Performance - ROC vs K",
+       x = "Number of Neighbors (K)",
+       y = "ROC AUC")
+
+#plot best curve
+plot(roc_knn,
+     col = "darkgreen",
+     main = "ROC Curve - KNN")
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
