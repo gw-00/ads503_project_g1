@@ -22,6 +22,7 @@ library(corrplot)
 library(caret)
 library(here)
 library(naniar)
+library(VIM)
 ```
 
 ```{r data_import}
@@ -181,6 +182,7 @@ merged_df$restwm <- factor(merged_df$restwm,
 merged_df <- merged_df %>%
   mutate(thal = ifelse(thal == 1, NA, thal)) %>%
   mutate(thal = ifelse(thal == 2, NA, thal)) %>%
+  mutate(thal = ifelse(thal == 4, NA, thal)) %>%
   mutate(thal = ifelse(thal == 5, NA, thal))
 ```
 
@@ -274,7 +276,6 @@ missing_var %>%
 gg_miss_var(df)
 
 # missingness patterns
-library(VIM)
 aggr(df, numbers = TRUE, sortVars = TRUE, cex.axis = 0.7)
 # missingness correlation
 gg_miss_upset(df, nsets = 10)
@@ -358,8 +359,6 @@ show_histogram(df, thal)
 show_densityplot(df, thal)
 table(df$thal)
 
-# one value is 4, possible entry error
-df$thal[df$thal == 4] <- NA
 # impute with mode and missingness flag
 df <- df %>%
   mutate(
@@ -371,9 +370,6 @@ df <- df %>%
 df <- df %>%
   select(-thal)
 ```
-
-One value was recorded as `4` which is not valid in the data dictionary. This was replaced with NA. Then imputation using mode was performed.
-
 #### thaltime
 
 ```{r thaltime}
@@ -499,10 +495,6 @@ Missing values in `famhist` were imputed with 'missing'.
 imputed_cols <-c('ca_imputed', 'ca_missing', 'thal_imputed', 'thal_missing', 
                  'thaltime_missing', 'thaltime_imputed', 'smoke_profile', 
                  'rldv5_missing', 'rldv5_imputed', 'famhist')
-# drop cols that were imputed
-# df1 <- df %>%
-#   select(-all_of(missing_gt40))
-
 # drop date / time columns
 drop_cols <- c('cmo', 'cday', 'cyr', 'ekgmo', 'ekgday', 'ekgyr')
 df1 <- df %>%
@@ -534,16 +526,12 @@ binary_vars <- df1 %>%
   names()
 
 # convert binary vars to factors
-df1[binary_vars] <- lapply(df1[binary_vars], as.factor)
+#df1[binary_vars] <- lapply(df1[binary_vars], as.factor)
 # convert sex to male/female
-df$sex <- factor(df$sex, levels = c(0, 1), labels = c("female", "male"))
+#df$sex <- factor(df$sex, levels = c(0, 1), labels = c("female", "male"))
 
 head(df1)
 ```
-
-Binary variables were converted to factors. 
-Sex variable was converted to explicitly "female", "male"
-
 ### Numerical Variables
 
 ```{r numerical_with_na}
