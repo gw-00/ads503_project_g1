@@ -1,0 +1,144 @@
+---
+title: "dc_TreeModels"
+author: "Darren"
+output: html_document
+date: 6/15/2025
+---
+
+```{r knit}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(caret)
+library(pROC)
+
+```
+   
+```{r lib}
+library(tidyverse)
+library(caret)
+library(pROC)
+```
+
+## Load Processed Data
+
+```{r load data}
+
+
+# Load the winsorized and balanced datasets
+processed_path <- "processed_data"
+df_wins <- readRDS(file.path(processed_path, "heart_disease_winsorized.rds"))
+df_balanced <- readRDS(file.path(processed_path, "heart_disease_balanced.rds"))
+
+# Preview dimensions and class distribution
+dim(df_wins)
+table(df_wins$num)
+
+# Use balanced data for training
+df <- df_balanced
+```
+
+## 1. Train/Test Split
+
+```{r split}
+set.seed(2025)
+trainIndex <- createDataPartition(df$num, p = 0.7, list = FALSE)
+train <- df[trainIndex, ]
+test  <- df[-trainIndex, ]
+
+# Confirm stratified split
+prop.table(table(train$num))
+prop.table(table(test$num))
+```
+
+## 2. Baseline Models
+
+### 2.1 Logistic Regression
+
+```{r
+ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary)
+
+log_mod <- train(num ~ ., data = train,
+                 method = "glm",
+                 family = "binomial",
+                 metric = "ROC",
+                 trControl = ctrl)
+
+log_mod
+```
+
+### 2.2 Linear Discriminant Analysis (LDA)
+
+```{r
+lda_mod <- train(num ~ ., data = train,
+                 method = "lda",
+                 metric = "Accuracy",
+                 trControl = trainControl(method = "cv", number = 5))
+
+lda_mod
+```
+
+## 3. Advanced Models
+
+### 3.1 Random Forest
+
+```{r
+rf_mod <- train(num ~ ., data = train,
+                method = "rf",
+                tuneLength = 3,
+                trControl = trainControl(method = "cv", number = 5))
+
+rf_mod
+```
+
+### 3.2 Penalized Logistic Regression (Elastic Net)
+
+```{r
+glmnet_mod <- train(num ~ ., data = train,
+                    method = "glmnet",
+                    tuneLength = 5,
+                    metric = "ROC",
+                    trControl = ctrl)
+
+glmnet_mod
+```
+
+## 4. Model Evaluation on Test Set
+
+```{r
+models <- list(Logistic = log_mod,
+               LDA = lda_mod,
+               RandomForest = rf_mod,
+               ElasticNet = glmnet_mod)
+
+results <- map(models, ~ predict(.x, test, type = "raw"))
+probs   <- map(models, ~ predict(.x, test, type = "prob"))
+
+# Confusion Matrices and Metrics
+eval_metrics <- map2(results, models, ~ confusionMatrix(.x, test$num))
+eval_metrics
+
+# ROC Curves
+roc_list <- map(probs, ~ roc(response = test$num,
+                              predictor = .x[["1"]],
+                              levels = rev(levels(test$num))))
+
+# Plot combined ROC
+plot(roc_list$Logistic, col = "blue", main = "ROC Curves")
+lines(roc_list$ElasticNet, col = "green")
+lines(roc_list$RandomForest, col = "red")
+lines(roc_list$LDA, col = "purple")
+legend("bottomright", legend = names(roc_list), col = c("blue","green","red","purple"), lwd = 2)
+```
+
+## 5. Variable Importance
+
+```{r
+varImp(rf_mod)
+varImp(glmnet_mod)
+```
+
+```{r
+# Save final selected model
+saveRDS(rf_mod, file = "models/random_forest_final.rds")
+```
+

@@ -1,0 +1,218 @@
+---
+title: "DATA PREPROCESING "
+author: "DARREN"
+format: html
+editor: source
+output: pdf_document
+---
+
+
+---
+
+## title: "Data Preprocessing" output: html\_document
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(caret)
+library(corrplot)
+# library(car)
+# Optional for SMOTE if desired:
+# library(DMwR)
+<<<<<<< Updated upstream
+```
+
+```{r load}
+library(here)  # put near the other library calls
+=======
+library(here)  
+
+```
+
+```{r load}
+>>>>>>> Stashed changes
+# Load the cleaned, modeling-ready dataset
+df <- readRDS(here("Data", "Clean", "heart_disease_cleaned.rds"))
+```
+
+## 1. Factor / Character Handling
+
+```{r factor, char handling}
+# Inspect structure of df
+str(df)
+
+# Convert character columns **and ordered factors** to plain factors
+# pivot_longer cannot mix ordered and unordered factors of different levels
+
+df <- df %>%
+  mutate(across(where(is.character), as.factor),
+         across(where(is.ordered), ~ factor(as.character(.))))
+
+# Ensure the outcome variable 'num' is a factor (replace name if different)
+df$num <- as.factor(df$num)
+
+# Visualize levels of each factor variable
+library(tidyr)
+
+df %>%
+  select(where(is.factor)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+    geom_bar() +
+    facet_wrap(~ variable, scales = "free_x") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Categorical Variable Levels")
+```
+
+## 2. Scaling and Centering
+
+```{r scale and center }
+# Identify numeric columns
+num_vars <- df %>% select(where(is.numeric)) %>% colnames()
+
+# Preview distributions before scaling
+df %>%
+  select(all_of(num_vars)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+    geom_histogram(bins = 30) +
+    facet_wrap(~ variable, scales = "free") +
+    ggtitle("Distributions Before Scaling")
+
+# Apply centering & scaling
+preproc <- preProcess(df[, num_vars], method = c("center", "scale"))
+df_scaled <- df
+df_scaled[, num_vars] <- predict(preproc, df[, num_vars])
+
+# Preview distributions after scaling
+df_scaled %>%
+  select(all_of(num_vars)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+    geom_histogram(bins = 30) +
+    facet_wrap(~ variable, scales = "free") +
+    ggtitle("Distributions After Scaling")
+```
+
+## 3. Outlier Detection and Treatment
+
+```{r numeric values vis}
+# Boxplots for scaled variables
+df_scaled %>%
+  select(all_of(num_vars)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+    geom_boxplot(outlier.colour = "red") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Boxplots for Outlier Detection")
+
+# Count outliers using 1.5 * IQR rule
+outlier_counts <- sapply(df_scaled[, num_vars], function(x) {
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  H <- 1.5 * (Q3 - Q1)
+  sum(x < (Q1 - H) | x > (Q3 + H), na.rm = TRUE)
+})
+outlier_counts
+```
+
+
+```{r scaled variables }
+
+# Boxplots for scaled variables
+df_scaled %>%
+  select(all_of(num_vars)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+    geom_boxplot(outlier.colour = "red") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Boxplots for Outlier Detection")
+```
+
+```{r outliers}
+# Count outliers using 1.5 * IQR rule
+outlier_counts <- sapply(df_scaled[, num_vars], function(x) {
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  H <- 1.5 * (Q3 - Q1)
+  sum(x < (Q1 - H) | x > (Q3 + H), na.rm = TRUE)
+})
+outlier_counts
+```
+
+```{r winsorize}
+# Define winsorize function (1st/99th percentile cap)
+winsorize <- function(x) {
+  qs <- quantile(x, probs = c(0.01, 0.99), na.rm = TRUE)
+  x[x < qs[1]] <- qs[1]
+  x[x > qs[2]] <- qs[2]
+  x
+}
+
+# Apply winsorization to scaled data
+df_wins <- df_scaled
+df_wins[, num_vars] <- lapply(df_wins[, num_vars], winsorize)
+```
+
+## 4. Multicollinearity Check
+
+```{r correlation}
+
+# Correlation matrix heatmap
+cor_mat <- cor(df_wins[, num_vars], use = "pairwise.complete.obs")
+corrplot(cor_mat, method = "color", tl.cex = 0.7, main = "Correlation Matrix")
+```
+
+```{r vif}
+# VIF computation: convert outcome to numeric temporarily
+vif_df <- df_wins %>%
+  mutate(num_numeric = as.numeric(as.character(num)))
+
+# Identify highly correlated pairs using caret::findCorrelation
+# This provides column indices of variables to remove
+highCorr <- findCorrelation(cor_mat, cutoff = 0.9, names = TRUE)
+
+# Print variables to consider dropping
+highCorr
+```
+
+## 5. Class Imbalance Handling
+
+```{r imbalance }
+# Original class distribution
+table(df$num)
+
+# Visualize original distribution
+df %>%
+  ggplot(aes(x = num)) +
+    geom_bar(fill = "steelblue") +
+    ggtitle("Original Class Distribution")
+```
+
+```{r imbalance 1}
+# Upsampling minority class
+set.seed(123)
+df_balanced <- upSample(x = df_wins %>% select(-num), y = df_wins$num, yname = "num")
+
+# Check new distribution
+table(df_balanced$num)
+```
+
+```{r imbalance 2}
+df_balanced %>%
+  ggplot(aes(x = num)) +
+    geom_bar(fill = "tomato") +
+    ggtitle("Balanced Class Distribution (Upsampled)")
+```
+
+**Save preprocessed datasets for modeling:**
+
+```{r save}
+# Save as RDS for next modeling steps
+saveRDS(df_wins, "heart_disease_winsorized.rds")
+saveRDS(df_balanced, "heart_disease_balanced.rds")
+```
+
