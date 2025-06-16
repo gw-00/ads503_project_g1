@@ -54,7 +54,7 @@ prop.table(table(test$num))
 
 ### 2.1 Logistic Regression
 
-```{r
+```{r logreg}
 ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary)
 
 log_mod <- train(num ~ ., data = train,
@@ -68,7 +68,7 @@ log_mod
 
 ### 2.2 Linear Discriminant Analysis (LDA)
 
-```{r
+```{r LDA}
 lda_mod <- train(num ~ ., data = train,
                  method = "lda",
                  metric = "Accuracy",
@@ -81,7 +81,7 @@ lda_mod
 
 ### 3.1 Random Forest
 
-```{r
+```{r Random Forest}
 rf_mod <- train(num ~ ., data = train,
                 method = "rf",
                 tuneLength = 3,
@@ -92,7 +92,7 @@ rf_mod
 
 ### 3.2 Penalized Logistic Regression (Elastic Net)
 
-```{r
+```{r Log Regression}
 glmnet_mod <- train(num ~ ., data = train,
                     method = "glmnet",
                     tuneLength = 5,
@@ -104,7 +104,7 @@ glmnet_mod
 
 ## 4. Model Evaluation on Test Set
 
-```{r
+```{r predict}
 models <- list(Logistic = log_mod,
                LDA = lda_mod,
                RandomForest = rf_mod,
@@ -132,13 +132,24 @@ legend("bottomright", legend = names(roc_list), col = c("blue","green","red","pu
 
 ## 5. Variable Importance
 
-```{r
+```{r Variable Importance}
 varImp(rf_mod)
 varImp(glmnet_mod)
 ```
 
-```{r
+```{r save models}
 # Save final selected model
-saveRDS(rf_mod, file = "models/random_forest_final.rds")
+
+# 1. Save Logistic Regression Model
+saveRDS(log_mod, file = paste0(model_save_directory, "logistic_regression_model.rds"))
+
+# 2. Save Linear Discriminant Analysis (LDA) Model
+saveRDS(lda_mod, file = paste0(model_save_directory, "lda_model.rds"))
+
+# 3. Save Random Forest Model
+saveRDS(rf_mod, file = paste0(model_save_directory, "random_forest_model.rds"))
+
+# 4. Save Penalized Logistic Regression (Elastic Net) Model
+saveRDS(glmnet_mod, file = paste0(model_save_directory, "glmnet_model.rds"))
 ```
 
