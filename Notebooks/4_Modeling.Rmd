@@ -16,6 +16,7 @@ library(tidyverse)
 library(caret)
 library(here)
 library(pROC)
+library(pls)
 ```
 
 ## Read in datasets
@@ -64,9 +65,8 @@ K_grid <- data.frame(
   k = seq(1, 25, by = 2)
 )
 
-# PLS Tuning (pretty sure none needed though)
-
-
+# PLS Tuning Grid for number of components to retain
+pls_grid <- expand.grid(.ncomp = 1:10)
 
 # Results Table Creation
 # insert darrens code from Performance here and alter variables 
@@ -201,11 +201,45 @@ lda_mod <- train(num ~ ., data = train,
 lda_mod
 ```
 
+These models can be compared against each other so keep them next to one another
 
-# Partial Least Squares Classification (Graham)
+# Partial Least Squares Discriminant Analysis (Graham)
 
 ```{r}
+# Fit PLSDA model
+pls_model <- train(
+  has_disease ~ .,
+  data = train_data,
+  method = "pls",
+  tuneGrid = pls_grid,
+  preProcess = process_strat,
+  metric = global_metric,
+  trControl = ctrl
+)
+#predictions
+pls_preds <- predict(pls_model, newdata = test_data)
+# confusion matrix
+pls_confm <- confusionMatrix(pls_preds, 
+                             test_data$has_disease, 
+                             positive = "Yes")
+#show confusion matrix
+pls_confm
+#probabilities
+pls_probs <- predict(pls_model, newdata = test_data, type = "prob")[, "Yes"]
+#ROC
+roc_pls <- roc(test_data$has_disease, pls_probs)
+#AUC
+auc(roc_pls)
 
+#plot ROC
+plot(roc_pls, 
+     col = "purple",
+     main = "ROC Curve - PLSDA")
+
+
+# Variable Importance Scores
+pls_importance <- varImp(pls_model, scale = FALSE)
+plot(pls_importance, top = 10)
 ```
 
 
