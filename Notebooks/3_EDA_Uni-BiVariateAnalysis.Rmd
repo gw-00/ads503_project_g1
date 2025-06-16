@@ -164,9 +164,9 @@ bivariate_summary <- data.frame(
 # Loop through and compute t-tests
 for (var in num_vars) {
   formula <- reformulate("has_disease", response = var)
-  p_val <- tryCatch(t.test(formula, data = X_df)$p.value, error = function(e) NA)
+  p_val <- tryCatch(t.test(formula, data = df)$p.value, error = function(e) NA)
   
-  is_missing_flag <- paste0(var, "_missing") %in% colnames(X_df) | var %in% missing_flags
+  is_missing_flag <- paste0(var, "_missing") %in% colnames(df) | var %in% missing_flags
 
   recommendation <- if (!is.na(p_val) && p_val < 0.05) {
     "Include (predictive)"
@@ -194,17 +194,15 @@ bivariate_summary
 selected_num_vars <- bivariate_summary %>%
   filter(str_detect(Recommendation, "Include")) %>%
   pull(Variable)
-
 ```
 
-Based on recommendation, all variables recommended as 'Include' will be used kept. 
+Based on recommendation, all variables recommended as 'Include' will be kept.
 
 
 ## Categorical Vars
 
 ### Bar Plots
 ```{r}
-
 plot_bivariate_cat <- function(var) {
   ggplot(df, aes(x = .data[[var]], fill = factor(has_disease))) +
     geom_bar(position = "fill") +  # proportion stacked
@@ -216,8 +214,6 @@ plot_bivariate_cat <- function(var) {
 for (var in cat_vars) {
   print(plot_bivariate_cat(var))
 }
-  
-
 ```
 
 Have similar distributions: "prop", "nitr", "pro", "diuretic", "exang"
@@ -311,4 +307,4 @@ saveRDS(model_df, here("Data/Clean", "heart_disease_modeling.rds"))
 model_df %>% dim()
 ```
 
-The final modeling set has 899 observations and 27 features including the target variable. 
+The final modeling set has 899 observations and 39 features including the target variable. 
