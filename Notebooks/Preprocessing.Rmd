@@ -22,10 +22,18 @@ library(corrplot)
 # library(car)
 # Optional for SMOTE if desired:
 # library(DMwR)
+<<<<<<< Updated upstream
 ```
 
 ```{r load}
 library(here)  # put near the other library calls
+=======
+library(here)  
+
+```
+
+```{r load}
+>>>>>>> Stashed changes
 # Load the cleaned, modeling-ready dataset
 df <- readRDS(here("Data", "Clean", "heart_disease_cleaned.rds"))
 ```
