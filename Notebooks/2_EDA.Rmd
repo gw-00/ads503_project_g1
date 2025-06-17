@@ -23,6 +23,9 @@ library(caret)
 library(here)
 library(naniar)
 library(VIM)
+library(skimr)
+library(stringr)
+library(rcompanion)
 ```
 
 ```{r data_import}
@@ -601,3 +604,295 @@ Binary target column for the target variable `num` was created. This column was 
 saveRDS(df1, here("Data/Clean", "heart_disease_final.rds"))
 
 ```
+
+
+# Univariate Analysis
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+df <- readRDS(here("Data/Clean", "heart_disease_final.rds"))
+head(df)
+
+# separate target from variables
+target_vars <- c("num", "has_disease")
+y_df <- df %>%
+  select(all_of(target_vars))
+         
+X_df <- df %>%
+  select(-all_of(target_vars))
+```
+
+## Numerical vars 
+
+```{r}
+num_vars <-X_df %>%
+  select(where(is.numeric)) %>%
+  names()
+
+# summary 
+X_df %>%
+  select(all_of(num_vars)) %>%
+  summary()
+
+
+# Example: just the *_imputed columns (exclude *_missing)
+imputed_vars <- names(X_df)[str_detect(names(X_df), "_imputed") & !str_detect(names(X_df), "_missing")]
+
+X_df %>%
+  select(all_of(imputed_vars)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = "steelblue", outlier.shape = 16, outlier.size = 1) +
+  theme_minimal() +
+  labs(title = "Boxplots of Imputed Numeric Variables", x = "Variable", y = "Value") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+```{r}
+# summary statistics
+X_df %>%
+  select(where(is.numeric)) %>%
+  skimr::skim()
+```
+
+
+## Categorical vars
+
+```{r}
+cat_vars <- X_df %>%
+  select(where(~ is.factor(.) || is.character(.))) %>%
+  names()
+
+# relative frequency tables
+for (var in cat_vars) {
+  cat("----", var, "----\n")
+  print(prop.table(table(X_df[[var]])))
+  cat("\n")
+}
+
+```
+```{r barplots-loop, results='asis', echo=FALSE, message=FALSE, warning=FALSE}
+# custom function for bar plots
+plot_bar <- function(dataframe, var) {
+  ggplot(dataframe, aes(x = .data[[var]])) +
+    geom_bar(fill = "steelblue") +
+    labs(title = paste("Bar Plot of", var), x = var, y = "Count") +
+    theme_minimal()
+}
+
+for (var in cat_vars) {
+  print(plot_bar(X_df, var))
+}
+```
+
+
+## Feature Types
+
+```{r}
+X_df %>%
+  summarise(
+    numeric = sum(sapply(., is.numeric)),
+    categorical = sum(sapply(., is.factor))
+  )
+
+```
+
+# Bivariate Analysis
+
+## Numerical Vars
+
+### Box Plots
+
+```{r}
+plot_bivariate_num <- function(var) {
+  ggplot(df, aes(x = factor(has_disease), y = .data[[var]])) +
+    geom_boxplot(fill = "skyblue") +
+    labs(title = paste(var, "by Disease Status"), x = "Has Disease", y = var) +
+    theme_minimal()
+}
+
+for (var in num_vars){ 
+print(plot_bivariate_num(var))
+}
+
+```
+
+### Welch's two-sample t-test
+
+```{r}
+for (var in num_vars) {
+  formula <- reformulate("has_disease", response = var)
+  test_result <- t.test(formula, data = df)
+  cat("=== T-test for", var, "===\n")
+  print(test_result)
+  cat("\n\n")
+}
+```
+
+### Summary for numerical variables
+
+```{r}
+missing_flags <- colnames(df)[str_detect(colnames(df), "_missing$")]
+
+# recommendation code generated with the help of ChatGPT. 
+# Create an empty data frame to store results
+bivariate_summary <- data.frame(
+  Variable = character(),
+  p_value = numeric(),
+  Missingness_Flag = logical(),
+  Recommendation = character(),
+  stringsAsFactors = FALSE
+)
+
+
+# Loop through and compute t-tests
+for (var in num_vars) {
+  formula <- reformulate("has_disease", response = var)
+  p_val <- tryCatch(t.test(formula, data = df)$p.value, error = function(e) NA)
+  
+  is_missing_flag <- paste0(var, "_missing") %in% colnames(df) | var %in% missing_flags
+
+  recommendation <- if (!is.na(p_val) && p_val < 0.05) {
+    "Include (predictive)"
+  } else if (is_missing_flag) {
+    "Include (missingness informative)"
+  } else {
+    "Optional (evaluate with model)"
+  }
+  
+  bivariate_summary <- rbind(
+    bivariate_summary,
+    data.frame(
+      Variable = var,
+      p_value = round(p_val, 5),
+      Missingness_Flag = is_missing_flag,
+      Recommendation = recommendation
+    )
+  )
+}
+
+# View result
+bivariate_summary
+
+# create list of variables recommended as Include
+selected_num_vars <- bivariate_summary %>%
+  filter(str_detect(Recommendation, "Include")) %>%
+  pull(Variable)
+```
+
+Based on recommendation, all variables recommended as 'Include' will be kept.
+
+
+## Categorical Vars
+
+### Bar Plots
+```{r}
+plot_bivariate_cat <- function(var) {
+  ggplot(df, aes(x = .data[[var]], fill = factor(has_disease))) +
+    geom_bar(position = "fill") +  # proportion stacked
+    labs(title = paste(var, "by Disease Status"), y = "Proportion", fill = "Disease") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+for (var in cat_vars) {
+  print(plot_bivariate_cat(var))
+}
+```
+
+Have similar distributions: "prop", "nitr", "pro", "diuretic", "exang"
+Have similar distributions:  "ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"
+
+```{r}
+cat_vars_to_keep <- c("sex", "painexer", "relrest", "cp", "htn", "fbs", "restecg", "exang", "slope", "ladprox", "location", "ca_missing", "thatltime_missing", "smoke_profile")
+```
+
+```{r}
+# cramer v
+cramerv <- function(dataframe, var_list){
+  cramerV_matrix <- matrix(NA, nrow = length(var_list), ncol = length(var_list),
+                           dimnames = list(var_list, var_list))
+  
+  for (i in seq_along(var_list)) {
+    for (j in seq_along(var_list)) {
+      tbl <- table(dataframe[[var_list[i]]], dataframe[[var_list[j]]])
+      cramerV_matrix[i, j] <- suppressWarnings(cramerV(tbl))
+    }
+  }
+  print(cramerV_matrix)
+}
+
+# Check correlation of variables that to have similar distribution
+cramerv(df, c("prop", "nitr", "pro", "diuretic", "exang"))
+cramerv(df, c("ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"))
+
+drop_colinearity_cols <- c("prop", "nitr", "pro", "diuretic", "laddist", 
+                           "cxmain", "om1", "rcaprox", "rcadist")
+```
+
+Based on the results, each set of variables are moderate to highly correlated. 
+If necessary, these variables could be kept `exang` and `ladprox` while dropping the others. 
+
+### Summary for categorical variables
+
+```{r}
+# recommendation code generated with the help of ChatGPT. 
+cat_summary <- data.frame(
+  Variable = character(),
+  p_value = numeric(),
+  Recommendation = character(),
+  stringsAsFactors = FALSE
+)
+
+for (var in cat_vars) {
+  tbl <- table(df[[var]], df$has_disease)
+  p_val <- tryCatch(chisq.test(tbl)$p.value, error = function(e) NA)
+
+  rec <- if (!is.na(p_val) && p_val < 0.05) {
+    "Include (predictive)"
+  } else {
+    "Optional (evaluate with model)"
+  }
+
+  cat_summary <- rbind(
+    cat_summary,
+    data.frame(Variable = var, p_value = round(p_val, 5), Recommendation = rec)
+  )
+}
+
+cat_summary
+
+# create list of all variables recommended as Include
+selected_cat_vars <- cat_summary %>%
+  filter(str_detect(Recommendation, "Include")) %>%
+  pull(Variable)
+
+selected_cat_vars
+```
+
+
+## Final Variable Sets
+
+```{r}
+# combine selected variables
+included_vars <- c(selected_num_vars, selected_cat_vars)
+
+model_df <- df %>%
+  select(all_of(included_vars), has_disease) %>%
+  select(-all_of(drop_colinearity_cols))
+
+str(model_df)
+```
+
+```{r}
+# export modeling dataset to RDS file
+saveRDS(model_df, here("Data/Clean", "heart_disease_modeling.rds"))
+
+model_df %>% dim()
+```
+
+The final modeling set has 899 observations and 39 features including the target variable. 
