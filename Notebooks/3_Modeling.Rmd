@@ -1,5 +1,5 @@
 ---
-title: "Random_Forest"
+title: "Modeling Notebook"
 output: pdf_document
 date: "2025-06-13"
 ---
@@ -19,283 +19,215 @@ library(pROC)
 library(pls)
 ```
 
-## Read in datasets
-```{r}
+## Read and Prepare Data
+```{r read_data}
+# Read in modeling dataset
 df_model <- readRDS(here("Data/Clean", "heart_disease_modeling.rds"))
-# doesn't have correalted feaures ^^
-df_final <- readRDS(here("Data/Clean", "heart_disease_final.rds"))
-#df_final has correlated features ^^
-
-seed <- 13579
-set.seed(seed)
-head(df_model)
-```
-## Ensure positive class and balance
-```{r}
-# ensure positive class
+# Ensure factor levels for binary outcome
 df_model$has_disease <- factor(df_model$has_disease, levels = c("No", "Yes"))
 
-# check for class balance
-table(df_model$has_disease)
-prop.table(table(df_model$has_disease))
-```
-
-## Global Parameter Setting
-```{r control_tuning_grids}
-# set global performance metric
-global_metric = "ROC"
-
-#resampling strategy
-ctrl <- trainControl(
-  method = "cv", 
-  number = 5, 
-  classProbs = TRUE, 
-  summaryFunction = twoClassSummary, 
-  verboseIter = FALSE
-)
-
-# Pre-processing Strategy
-process_strat <- NULL
-
-
-# Penalized Regression Grids
-
-# KNN Grids
-K_grid <- data.frame(
-  k = seq(1, 25, by = 2)
-)
-
-# PLS Tuning Grid for number of components to retain
-pls_grid <- expand.grid(.ncomp = 1:10)
-
-# Results Table Creation
-# insert darrens code from Performance here and alter variables 
-
-
-
-
+# Set seed for reproducibility
+seed <- 13579
+set.seed(seed)
 ```
 
 ## Train/Test Split
-```{r}
+```{r split_data}
 train_index <- createDataPartition(df_model$has_disease, p = 0.8, list = FALSE)
-
-train_data <- df_model[train_index, ]
-test_data <- df_model[-train_index, ]
-
+train_data  <- df_model[train_index, ]
+test_data   <- df_model[-train_index, ]
 ```
 
-# Logistic Regression
+## Global Model Settings
+```{r global_settings}
+# Performance metric and resampling
+global_metric <- "ROC"
+ctrl <- trainControl(
+  method          = "cv",
+  number          = 5,
+  classProbs      = TRUE,
+  summaryFunction = twoClassSummary,
+  verboseIter     = FALSE
+)
+# preprocessing strategy
+process_strat <- c("center", "scale")
 
-```{r}
+# Tuning grids
+K_grid <- data.frame(k = seq(1, 25, by = 2))
+pls_grid <- expand.grid(ncomp = 1:10)
+penalty_grid <- expand.grid(
+  alpha  = c(0, 1, seq(0.1, 0.9, by = 0.1)),
+  lambda = 10^seq(-4, 0, length = 50)
+)
+```
+
+## Initialize Results Table
+```{r init_results}
+results_tbl <- tibble(
+  Model       = character(),
+  Accuracy    = numeric(),
+  Sensitivity = numeric(),
+  Specificity = numeric(),
+  ROC_AUC     = numeric()
+)
+```
+
+### 1. Logistic Regression
+```{r logistic_regression}
+set.seed(seed)
 glm_model <- train(
   has_disease ~ ., 
-  data = train_data,
-  method = "glm", 
-  family = "binomial",
-  metric = "ROC",
-  trControl = ctrl
-)
-
-# Class predictions
-glm_preds <- predict(glm_model, test_data)
-
-# Confusion matrix
-confusionMatrix(glm_preds, test_data$has_disease, positive = "Yes")
-
-```
-
-```{r}
-glm_probs <- predict(glm_model, test_data, type = "prob")[, "Yes"]
-roc_glm <- roc(test_data$has_disease, glm_probs)
-
-# AUC
-auc(roc_glm)
-
-# Plot
-plot(roc_glm, main = "ROC Curve - Logistic Regression", col = "blue")
-
-```
-
-# Random Forest
-
-```{r}
-# create rf model
-rfm_model <- train(
-  has_disease ~ ., 
-  data = train_data, 
-  method = "rf", 
-  trControl = ctrl, 
-  metric = "ROC", 
-  importance = TRUE
-)
-
-levels(test_data$has_disease)
-
-rfm_preds <- predict(rfm_model, test_data)
-confusionMatrix(rfm_preds, test_data$has_disease, positive = "Yes")
-
-rfm_probs <- predict(rfm_model, test_data, type = "prob")
-
-varImp(rfm_model) %>%
-  plot()
-```
-
-```{r}
-# Predict on training data
-train_preds <- predict(rfm_model, train_data)
-
-# Predict on test data
-test_preds <- predict(rfm_model, test_data)
-```
-
-```{r}
-# Training set performance
-train_cm <- confusionMatrix(train_preds, train_data$has_disease, positive = "Yes")
-print(train_cm)
-
-# Test set performance
-test_cm <- confusionMatrix(test_preds, test_data$has_disease, positive = "Yes")
-print(test_cm)
-
-```
-
-```{r}
-# Class probabilities
-train_probs <- predict(rfm_model, train_data, type = "prob")[, "Yes"]
-test_probs  <- predict(rfm_model, test_data, type = "prob")[, "Yes"]
-
-# ROC curves
-roc_train <- roc(train_data$has_disease, train_probs)
-roc_test  <- roc(test_data$has_disease, test_probs)
-
-# Print AUC
-cat("Train AUC:", auc(roc_train), "\n")
-cat("Test AUC:", auc(roc_test), "\n")
-
-# Optional: plot both curves
-plot(roc_train, col = "blue", main = "ROC Curves: Train vs Test")
-lines(roc_test, col = "red")
-legend("bottomright", legend = c("Train", "Test"), col = c("blue", "red"), lwd = 2)
-
-```
-```{r}
-cat("Train AUC:", auc(roc_train), "\n")
-cat("Test AUC:", auc(roc_test), "\n")
-
-```
-
-# Penalized Classification (Darren)
-```{r}
-
-```
-
-# Linear Discriminant Analysis (Darren)
-
-```{r}
-lda_mod <- train(num ~ ., data = train,
-                 method = "lda",
-                 metric = "ROC",
-                 trControl = trainControl(method = "cv", number = 5))
-
-lda_mod
-```
-
-These models can be compared against each other so keep them next to one another
-
-# Partial Least Squares Discriminant Analysis (Graham)
-
-```{r}
-# Fit PLSDA model
-pls_model <- train(
-  has_disease ~ .,
-  data = train_data,
-  method = "pls",
-  tuneGrid = pls_grid,
-  preProcess = process_strat,
-  metric = global_metric,
-  trControl = ctrl
-)
-#predictions
-pls_preds <- predict(pls_model, newdata = test_data)
-# confusion matrix
-pls_confm <- confusionMatrix(pls_preds, 
-                             test_data$has_disease, 
-                             positive = "Yes")
-#show confusion matrix
-pls_confm
-#probabilities
-pls_probs <- predict(pls_model, newdata = test_data, type = "prob")[, "Yes"]
-#ROC
-roc_pls <- roc(test_data$has_disease, pls_probs)
-#AUC
-auc(roc_pls)
-
-#plot ROC
-plot(roc_pls, 
-     col = "purple",
-     main = "ROC Curve - PLSDA")
-
-
-# Variable Importance Scores
-pls_importance <- varImp(pls_model, scale = FALSE)
-plot(pls_importance, top = 10)
-```
-
-
-# K-Nearest Neighbors Classification (Graham)
-
-```{r}
-# fit the knn model
-knn_model <- train(
-  has_disease ~ .,
-  data = train_data,
-  method = "knn",
-  metric = global_metric,
-  tuneGrid = K_grid,
+  data      = train_data,
+  method    = "glm",
+  family    = "binomial",
+  metric    = global_metric,
   trControl = ctrl,
   preProcess = process_strat
 )
 
-# get the best k via ROC
-best_k <- knn_model$bestTune
-#predictions
-knn_preds <- predict(knn_model, newdata = test_data)
+glm_preds <- predict(glm_model, test_data)
+glm_probs <- predict(glm_model, test_data, type = "prob")[, "Yes"]
+roc_glm   <- roc(test_data$has_disease, glm_probs)
+glm_cm    <- confusionMatrix(glm_preds, test_data$has_disease, positive = "Yes")
 
-length(knn_preds)
-length(test_data$has_disease)
-
-#confusion matrix
-knn_confm <- confusionMatrix(knn_preds, 
-                             test_data$has_disease, 
-                             positive = "Yes")
-# show confusion matrix
-knn_confm
-#probabilities
-knn_probs <- predict(knn_model, 
-                     newdata = test_data,
-                     type = "prob")[, "Yes"]
-#roc
-roc_knn <- roc(test_data$has_disease,
-               knn_probs)
-#auc curve
-auc(roc_knn)
-
-#plot ROC across K
-ggplot(knn_model) + 
-  labs(title = "KNN Performance - ROC vs K",
-       x = "Number of Neighbors (K)",
-       y = "ROC AUC")
-
-#plot best curve
-plot(roc_knn,
-     col = "darkgreen",
-     main = "ROC Curve - KNN")
+results_tbl <- results_tbl %>%
+  add_row(
+    Model       = "Logistic Regression",
+    Accuracy    = glm_cm$overall["Accuracy"],
+    Sensitivity = glm_cm$byClass["Sensitivity"],
+    Specificity = glm_cm$byClass["Specificity"],
+    ROC_AUC     = as.numeric(auc(roc_glm))
+  )
 ```
 
+### 2. Random Forest
+```{r random_forest}
+set.seed(seed)
+rf_model <- train(
+  has_disease ~ ., 
+  data      = train_data,
+  method    = "rf",
+  metric    = global_metric,
+  trControl = ctrl,
+  preProcess = process_strat,
+  importance = TRUE
+)
 
+rf_preds <- predict(rf_model, test_data)
+rf_probs <- predict(rf_model, test_data, type = "prob")[, "Yes"]
+roc_rf   <- roc(test_data$has_disease, rf_probs)
+rf_cm    <- confusionMatrix(rf_preds, test_data$has_disease, positive = "Yes")
 
+results_tbl <- results_tbl %>%
+  add_row(
+    Model       = "Random Forest",
+    Accuracy    = rf_cm$overall["Accuracy"],
+    Sensitivity = rf_cm$byClass["Sensitivity"],
+    Specificity = rf_cm$byClass["Specificity"],
+    ROC_AUC     = as.numeric(auc(roc_rf))
+  )
+```
 
+### 3. PLS Discriminant Analysis
+```{r plsda}
+set.seed(seed)
+pls_model <- train(
+  has_disease ~ ., 
+  data      = train_data,
+  method    = "pls",
+  tuneGrid  = pls_grid,
+  preProcess = process_strat,
+  metric    = global_metric,
+  trControl = ctrl
+)
+
+pls_preds <- predict(pls_model, test_data)
+pls_probs <- predict(pls_model, test_data, type = "prob")[, "Yes"]
+roc_pls   <- roc(test_data$has_disease, pls_probs)
+pls_cm    <- confusionMatrix(pls_preds, test_data$has_disease, positive = "Yes")
+
+results_tbl <- results_tbl %>%
+  add_row(
+    Model       = "PLS-DA",
+    Accuracy    = pls_cm$overall["Accuracy"],
+    Sensitivity = pls_cm$byClass["Sensitivity"],
+    Specificity = pls_cm$byClass["Specificity"],
+    ROC_AUC     = as.numeric(auc(roc_pls))
+  )
+```
+
+### 4. K-Nearest Neighbors
+```{r knn_model}
+set.seed(seed)
+knn_model <- train(
+  has_disease ~ ., 
+  data      = train_data,
+  method    = "knn",
+  tuneGrid  = K_grid,
+  metric    = global_metric,
+  trControl = ctrl,
+  preProcess = process_strat
+)
+
+knn_preds <- predict(knn_model, test_data)
+knn_probs <- predict(knn_model, test_data, type = "prob")[, "Yes"]
+roc_knn   <- roc(test_data$has_disease, knn_probs)
+knn_cm    <- confusionMatrix(knn_preds, test_data$has_disease, positive = "Yes")
+
+results_tbl <- results_tbl %>%
+  add_row(
+    Model       = "K-Nearest Neighbors",
+    Accuracy    = knn_cm$overall["Accuracy"],
+    Sensitivity = knn_cm$byClass["Sensitivity"],
+    Specificity = knn_cm$byClass["Specificity"],
+    ROC_AUC     = as.numeric(auc(roc_knn))
+  )
+```
+
+### 5. Penalized Regression (Lasso, Ridge & Elastic Net)
+```{r penalized_models}
+set.seed(seed)
+glmnet_mod <- train(
+  has_disease ~ ., 
+  data      = train_data,
+  method    = "glmnet",
+  tuneGrid  = penalty_grid,
+  metric    = global_metric,
+  trControl = ctrl,
+  preProcess = process_strat
+)
+
+net_preds <- predict(glmnet_mod, test_data)
+net_probs <- predict(glmnet_mod, test_data, type = "prob")[, "Yes"]
+roc_net   <- roc(test_data$has_disease, net_probs)
+net_cm    <- confusionMatrix(net_preds, test_data$has_disease, positive = "Yes")
+
+results_tbl <- results_tbl %>%
+  add_row(
+    Model       = "Elastic Net (glmnet)",
+    Accuracy    = net_cm$overall["Accuracy"],
+    Sensitivity = net_cm$byClass["Sensitivity"],
+    Specificity = net_cm$byClass["Specificity"],
+    ROC_AUC     = as.numeric(auc(roc_net))
+  )
+```
+
+## Results Summary and ROC Comparison
+```{r results_and_plots}
+# Display performance table
+knitr::kable(results_tbl, digits = 3, caption = "Model Performance Comparison")
+
+# ROC comparison plot
+plot(roc_glm, col = "blue", lwd = 2, main = "ROC Curves Comparison")
+lines(roc_rf,  col = "red",    lwd = 2)
+lines(roc_pls, col = "purple", lwd = 2)
+lines(roc_knn, col = "darkgreen", lwd = 2)
+lines(roc_net, col = "orange", lwd = 2)
+legend("bottomright",
+       legend = results_tbl$Model,
+       col    = c("blue","red","purple","darkgreen","orange"),
+       lwd    = 2)
+```
 
 
 
