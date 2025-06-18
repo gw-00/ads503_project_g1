@@ -29,7 +29,7 @@ library(rcompanion)
 ```
 
 ```{r data_import}
-merged_df <- read_csv('../Data/Raw/merged_df_raw.csv')
+merged_df <- read_csv(here('Data/Raw', 'merged_df_raw.csv')) 
 head(merged_df)
 ```
 
