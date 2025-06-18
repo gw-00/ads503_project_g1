@@ -253,15 +253,20 @@ df_cleaning$ca <- merged_df$ca
 df_cleaning$ca <- na_if(df_cleaning$ca, -9)
 
 dim(df_cleaning)
+```
 
+In the process of removing variables with \>60% missing data, the `ca` variable, which represents *Major vessels via fluoroscopy* was removed due to having 67.6% missing data. This variable was part of the *cleveland-14* set. It has re-added to the final data set after *nzv* variables were removed.
+
+### Export cleaned dataset
+
+```{r export_cleaned}
 # export to file
 write.csv(df_cleaning, here("Data/Clean", "heart_disease_cleaned.csv"), row.names = FALSE)
 saveRDS(df_cleaning, here("Data/Clean", "heart_disease_cleaned.rds"))
 ```
 
-In the process of removing variables with \>60% missing data, the `ca` variable, which represents *Major vessels via fluoroscopy* was removed due to having 67.6% missing data. This variable was part of the *cleveland-14* set. It has re-added to the final data set after *nzv* variables were removed.
 
-## Exploratory Data Analysis
+# Exploratory Data Analysis
 
 ```{r EDA}
 df <- readRDS(here("Data/Clean", "heart_disease_cleaned.rds"))
@@ -275,18 +280,29 @@ missing_var %>%
   filter(missing_pct > 0) %>%
   arrange(desc(missing_pct))
 
-# visualize missingness by variable
-gg_miss_var(df)
+# bar chart of missingness per feature
+gg_miss_var(df) + 
+  labs(
+    title = "Missing Data per Feature", 
+    x = "Features", 
+    y = "Proportion missing"
+  )
 
-# missingness patterns
-aggr(df, numbers = TRUE, sortVars = TRUE, cex.axis = 0.7)
-# missingness correlation
-gg_miss_upset(df, nsets = 10)
+# missingness matrix
+aggr(df, numbers = TRUE, sortVars = TRUE, cex.axis = 0.7,
+     main = "Missingness Matrix", 
+     sub = "Red = missing, Blue = observed")
+
+# missingness correlation / upset plot
+gg_miss_upset(df, nsets = 10, main.bar.color = "black")
+title("UpSet Plot of Missingness Combinations",
+      sub = "Top bars = Freq of combo, Side bars = total missing / feature")
 ```
 
-##### Variables Missing \> 40%
+## Variables Missing > 40%
 
--   ca: cleveland-14 variable - represents \# of major vessels (0 - 3) colored by fluoroscopy.
+-   ca: cleveland-14 variable - represents # of major vessels (0 - 3) colored 
+    by fluoroscopy.
 -   thal: cleveland-14 variable - results from thallium stress test
 -   thaltime: time duration for thallium stress test
 -   years: number of years as a smoker
@@ -294,11 +310,16 @@ gg_miss_upset(df, nsets = 10)
 -   famhist: family history of coronary artery disease
 -   cigs: cigarettes smoked per day
 
-##### Upset
+### Upset
+
+The UpSet plot shows the intersections of variable sets, similar to a 
+Venn Diagram. This plot shows the combinations of variables that have missing 
+values and the total of thos combinations. 
 
 -   based on upset table, `ca`, `thal`, and `thaltime` are missing together
 -   missingness might not be random
 
+### Custom Functions
 ```{r custom_functions}
 # function for showing histogram
 show_histogram <- function(dataframe, feature) {
@@ -334,7 +355,7 @@ show_barplot <- function(dataframe, feature) {
 }
 ```
 
-#### ca
+### Feature: `ca`
 
 ```{r ca}
 
@@ -353,9 +374,9 @@ df <- df %>%
   select(-ca)
 ```
 
-`ca` has a right skew therefore median was used for imputation.
+Feature `ca` has a right skew therefore median was used for imputation.
 
-#### thal
+### Feature: `thal`
 
 ```{r thal}
 show_histogram(df, thal)
@@ -373,7 +394,8 @@ df <- df %>%
 df <- df %>%
   select(-thal)
 ```
-#### thaltime
+
+### Feature: `thaltime`
 
 ```{r thaltime}
 summary(df$thaltime)
@@ -395,9 +417,9 @@ df <- df %>%
   select(-thaltime)
 ```
 
-`thaltime` showed a right skew. Imputed with median.
+Feature `thaltime` showed a right skew. Imputed with median.
 
-#### years + cigs
+### Features: `years` and `cigs`
 
 ```{r}
 show_histogram(df, years)
@@ -407,7 +429,8 @@ show_histogram(df, cigs)
 show_densityplot(df, cigs)
 
 ggplot(df, aes(x = years, y = cigs)) + geom_point()
-cor(df$years, df$cigs, use = "complete.obs", method = "pearson")
+corr_val <- cor(df$years, df$cigs, use = "complete.obs", method = "pearson")
+cat("Correlation value:", corr_val)
 
 # create smoke_profile feature
 # generative AI was used to create this code to create the smoke_profile feature
@@ -453,9 +476,11 @@ df <- df %>%
   select(-c(years, cigs))
 ```
 
-`years` and `cigs` has moderate colinearity. Due to missing data, a `smoke_profile` was engineered to combine the two columns.
+Features `years` and `cigs` show moderate collinearity 
+(Pearson correlation = 0.59). Due to missing data, a `smoke_profile` was 
+engineered to combine the two columns.
 
-#### rldv5
+### Feature: `rldv5`
 
 ```{r rldv5}
 show_histogram(df, rldv5)
@@ -472,9 +497,9 @@ df <- df %>%
   select(-rldv5)
 ```
 
-`rldv5` has a right skew therefore imputed with median.
+Feature `rldv5` has a right skew therefore imputed with median.
 
-#### famhist
+### Feature: `famhist`
 
 ```{r famhist}
 show_barplot(df, famhist)
@@ -490,7 +515,7 @@ show_barplot(df, famhist)
 
 Missing values in `famhist` were imputed with 'missing'.
 
-### Drop original columns after imputation
+#### Dropping original columns after imputation
 
 ```{r drop_imputed_gt40}
 # list of cols
@@ -563,7 +588,8 @@ df1 <- df1 %>%
 dim(df1)
 ```
 
-Numerical variables were imputed with the median value. Missing flags were also created for these variables. 
+Numerical variables were imputed with the median value. Missing flags were 
+also created for these variables. 
 
 ### Categorical Variables
 
@@ -586,7 +612,7 @@ anyNA(df1)
 ```
 For NAs in categorical variables, NAs were replaced with 'Missing'. 
 
-#### Create binary for target (num)
+### Create binary for target (num)
 
 ```{r}
 # create binary target 0 = no disease, 1 - 3 = varying levels
@@ -597,8 +623,10 @@ df1 <- df1 %>%
 
 head(df1)
 ```
-Binary target column for the target variable `num` was created. This column was left in. 
+Binary target column for the target variable `num` was created. 
+The column `num` was not removed from the dataset. 
 
+### Export finalized dataset
 ```{r export_imputed}
 # export final dataset
 saveRDS(df1, here("Data/Clean", "heart_disease_final.rds"))
@@ -650,9 +678,6 @@ X_df %>%
   labs(title = "Boxplots of Imputed Numeric Variables", x = "Variable", y = "Value") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-
-```
-```{r}
 # summary statistics
 X_df %>%
   select(where(is.numeric)) %>%
@@ -722,6 +747,9 @@ print(plot_bivariate_num(var))
 ```
 
 ### Welch's two-sample t-test
+
+Statistical testing to determin if there are significant differences between
+the means of two features. 
 
 ```{r}
 for (var in num_vars) {
@@ -803,14 +831,17 @@ for (var in cat_vars) {
   print(plot_bivariate_cat(var))
 }
 ```
+The following groups of variables have similar distributions which means they 
+are possibly correlated:
 
-Have similar distributions: "prop", "nitr", "pro", "diuretic", "exang"
-Have similar distributions:  "ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"
+Group 1: "prop", "nitr", "pro", "diuretic", "exang"
+Group 2:  "ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"
 
 ```{r}
 cat_vars_to_keep <- c("sex", "painexer", "relrest", "cp", "htn", "fbs", "restecg", "exang", "slope", "ladprox", "location", "ca_missing", "thatltime_missing", "smoke_profile")
 ```
 
+#### Cramer's V association test
 ```{r}
 # cramer v
 cramerv <- function(dataframe, var_list){
@@ -834,8 +865,11 @@ drop_colinearity_cols <- c("prop", "nitr", "pro", "diuretic", "laddist",
                            "cxmain", "om1", "rcaprox", "rcadist")
 ```
 
-Based on the results, each set of variables are moderate to highly correlated. 
-If necessary, these variables could be kept `exang` and `ladprox` while dropping the others. 
+Based on the results, each set of variables are moderate to highly correlated.
+To reduce multicollinearity, the following variables will be kept due to 
+clinical significance: 
+* `exang` - exercise-induced angina
+* `ladprox` - proximal LAD artery
 
 ### Summary for categorical variables
 
@@ -887,7 +921,7 @@ model_df <- df %>%
 
 str(model_df)
 ```
-
+### Export dataset for modeling
 ```{r}
 # export modeling dataset to RDS file
 saveRDS(model_df, here("Data/Clean", "heart_disease_modeling.rds"))
