@@ -282,7 +282,7 @@ lasso_model <- train(
   preProcess = process_strat
 )
 # best tuning parameters
-lasso_best <- lasso_mod$bestTune
+lasso_best <- lasso_model$bestTune
 # Testing set performance
 lasso_preds   <- predict(lasso_model, test_data)
 lasso_probs   <- predict(lasso_model, test_data, type = "prob")[, "Yes"]
