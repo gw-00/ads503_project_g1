@@ -107,7 +107,7 @@ full_cols <- c(
 
 ## Data Importing
 
-#### VA Long Beach
+### VA Long Beach
 
 ```{r VA_lb_importing}
 # using readLines, to read in each line of the long-beach-va.data file
@@ -137,7 +137,7 @@ va_df_raw$location <- "VA Long Beach"
 
 ```
 
-#### Hungary
+### Hungary
 
 ```{r Hungary_data_importing}
 lines <- readLines(here("Data/Raw", "hungarian.data"))
@@ -171,7 +171,7 @@ hu_df_raw <- hu_df_raw %>%
 #ead(hu_df_raw)
 ```
 
-#### Switzerland
+### Switzerland
 
 ```{r Switzerland_importing}
 # Generative AI used to write code to read in .data file
@@ -205,7 +205,7 @@ sw_df_raw <- sw_df_raw %>%
 #head(sw_df_raw)
 ```
 
-#### Cleveland
+### Cleveland
 
 ``` {r cleveland_importing}
 # using readLines, to read in each line of the cleveland.data file
