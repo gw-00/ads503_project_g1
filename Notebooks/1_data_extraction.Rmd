@@ -107,14 +107,14 @@ full_cols <- c(
 
 ## Data Importing
 
-#### VA Long Beach
+### VA Long Beach
 
 ```{r VA_lb_importing}
 # using readLines, to read in each line of the long-beach-va.data file
 # read_table, read_csv proved difficult to use to extract
 # outline is to use the occurrence of 'name' to distinguish unique observations
 # extract all the lines
-va_raw_lines <- readLines("../Data/Raw/long-beach-va.data")
+va_raw_lines <- readLines(here("Data/Raw", "long-beach-va.data"))
 # merge all lines into one string
 va_all_text <- paste(va_raw_lines, collapse = " ")
 # split each observation on name
@@ -137,10 +137,10 @@ va_df_raw$location <- "VA Long Beach"
 
 ```
 
-#### Hungary
+### Hungary
 
 ```{r Hungary_data_importing}
-lines <- readLines(here("Data", "Raw/hungarian.data"))
+lines <- readLines(here("Data/Raw", "hungarian.data"))
 
 # Step 2: Combine every 10 lines per patient
 patient_blocks <- split(lines, ceiling(seq_along(lines) / 10))
@@ -171,12 +171,12 @@ hu_df_raw <- hu_df_raw %>%
 #ead(hu_df_raw)
 ```
 
-#### Switzerland
+### Switzerland
 
 ```{r Switzerland_importing}
 # Generative AI used to write code to read in .data file
 # Step 1: Read the file
-lines <- readLines(here("Data", "Raw/switzerland.data"))
+lines <- readLines(here("Data/Raw", "switzerland.data"))
 
 # Step 2: Combine every 10 lines per patient
 patient_blocks <- split(lines, ceiling(seq_along(lines) / 10))
@@ -205,14 +205,14 @@ sw_df_raw <- sw_df_raw %>%
 #head(sw_df_raw)
 ```
 
-#### Cleveland
+### Cleveland
 
 ``` {r cleveland_importing}
 # using readLines, to read in each line of the cleveland.data file
 # read_table, read_csv proved difficult to use to extract
 # outline is to use the occurrence of 'name' to distinguish unique observations
 # extract all the lines
-clvd_raw_lines <- readLines("../Data/Raw/cleveland.data", 
+clvd_raw_lines <- readLines(here("Data/Raw", "cleveland.data"),
                             warn = FALSE)
 #clvd_raw_lines
 # merge all lines into one string
@@ -251,88 +251,9 @@ merged_df <- bind_rows(clvd_df_raw,
                        sw_df_raw,
                        va_df_raw)
 merged_df
-```
 
-
-## Data Cleaning
-
-
-```{r data_cleaning}
-# remove unnecessary columns
-# cols marked as not used or dummy variables
-not_used_dummy_var <- c(
-  "id", "ccf", "dummy", "trestbpd", "restckm", "exerckm", "thalsev", "thalpul",
-  "earlobe", "lvx1", "lvx2", "lvx3", "lvx4", "lvf", "cathef", "junk", "name"
-)
-
-df_cleaning <- merged_df %>%
-  select(-all_of(not_used_dummy_var))
-
-# convert -9 to NA
-df_cleaning <- df_cleaning %>%
-  mutate(across(where(is.character), ~ na_if(.x, "-9"))) %>%   # character columns
-  mutate(across(where(is.numeric), ~ na_if(.x, -9)))           # numeric columns
-
-sum(is.na(df_cleaning))
-df_cleaning %>% dim
-df_cleaning %>% head()
-
-# calculate percentage missing
-missing_threshold <- 60
-missing_pct <- df_cleaning %>%
-  summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
-  pivot_longer(everything(), names_to = "column", values_to = "missing_percent") %>%
-  arrange(desc(missing_percent))
-
-# filter by col missing
-missing_cols <- missing_pct %>%
-  filter(missing_percent > missing_threshold)
-var_missing_gt_60 <- missing_cols$column
-
-missing_cols
-# drop cols missing greater than threshold
-df_cleaning <- df_cleaning %>%
-  select(-all_of(var_missing_gt_60))
-dim(df_cleaning)
-
-# check near zero variance vars
-nzv_cols <- nearZeroVar(df_cleaning %>% 
-    select(-num), saveMetrics = TRUE)
-nzv_cols %>% filter(nzv == TRUE)
-
-# get column names of nzv
-nzv_names <- nzv_cols %>%
-  filter(nzv ==TRUE) %>%
-  rownames()
-nzv_names
-
-# remove nzv variables
-df_cleaning <- df_cleaning %>%
-  select(-all_of(nzv_names))
-
-# add back ca column for EDA
-df_cleaning$ca <- merged_df$ca
-df_cleaning$ca <- na_if(df_cleaning$ca, "-9")
-
-dim(df_cleaning)
-
+# write the merged raw file out to the raw data folder as 'merged_df_raw.csv'
 # export to file
-write.csv(df_cleaning, here("Data/Clean", "heart_disease_cleaned.csv"), row.names = FALSE)
+write.csv(merged_df, here("Data/Raw", "merged_df_raw.csv"), 
+          row.names = FALSE)
 ```
-
-In the process of removing variables with >60% missing data, the `ca`
-variable, which represents _Major vessels via fluoroscopy_ was removed
-due to having 67.6% missing data. This variable was part of the 
-_cleveland-14_ set. It has re-added to the final dataset after _nzv_ variables
-were removed. 
-
-## Exploratory Data Analysis
-
-```{r EDA}
-
-```
-
-
-
-
-

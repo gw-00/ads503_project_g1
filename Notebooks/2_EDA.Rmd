@@ -1,0 +1,932 @@
+---
+title: "2_EDA"
+output: pdf_document
+date: "2025-06-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Cleaning and Exploratory Data Analysis
+
+This R markdown document will be used to perform Exploratory Data Analysis (EDA) on the merged_df_raw that was developed in the previous workbook `1_data_extraction.Rmd`.
+
+## Data Importing
+
+```{r libraries}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(corrplot)
+library(caret)
+library(here)
+library(naniar)
+library(VIM)
+library(skimr)
+library(stringr)
+library(rcompanion)
+```
+
+```{r data_import}
+merged_df <- read_csv(here('Data/Raw', 'merged_df_raw.csv')) 
+head(merged_df)
+```
+
+## Categorical Conversions
+
+```{r}
+## categorical features and their levels and labels
+#sex
+merged_df$sex <- factor(merged_df$sex, 
+                    levels = c(0, 1), 
+                    labels = c("Female", "Male")
+                    )
+#painloc
+#unique(merged_df$painloc)
+merged_df$painloc <- factor(merged_df$painloc,
+                        levels = c(0, 1), 
+                        labels = c("Otherwise", "Substernal")
+                        )
+#painexer
+#unique(merged_df$painexer)
+merged_df$painexer <- factor(merged_df$painexer,
+                        levels = c(0, 1), 
+                        labels = c("Otherwise", "Provoked by Exertion")
+                        )
+#relrest
+#unique(merged_df$relrest)
+merged_df$relrest <- factor(merged_df$relrest,
+                        levels = c(0, 1), 
+                        labels = c("Otherwise", "Relieved after rest")
+                        )
+#cp
+#unique(merged_df$cp)
+merged_df$cp <- factor(merged_df$cp,
+                        levels = c(1, 2, 3, 4), 
+                        labels = c("Typical Angina", "Atypical Angina", 
+                                   "Non-anginal Pain", "Asymptomatic"), 
+                   ordered = TRUE)
+#smoke
+#unique(merged_df$smoke)
+merged_df$smoke <- factor(merged_df$smoke,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#fbs
+#unique(merged_df$fbs)
+merged_df$fbs <- factor(merged_df$fbs,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#dm
+#unique(merged_df$dm)
+merged_df$dm <- factor(merged_df$dm,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#famhist
+#unique(merged_df$famhist)
+merged_df$famhist <- factor(merged_df$famhist,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#restecg
+#unique(merged_df$restecg)
+merged_df$restecg <- factor(merged_df$restecg,
+                        levels = c(0, 1, 2), 
+                        labels = c("Normal", "Abnormal", "Hypertrophy"), 
+                   ordered = TRUE)
+#dig
+#unique(merged_df$dig)
+merged_df$dig <- factor(merged_df$dig,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#prop
+#unique(merged_df$prop)
+# find the number of 22's a feature outside the range/
+#sum(merged_df$prop == 22, na.rm = TRUE)
+# convert the 22 to NA
+merged_df <- merged_df %>%
+  mutate(prop = ifelse(prop == 22, NA, prop))
+#create factor
+merged_df$prop <- factor(merged_df$prop,
+                        levels = c(0, 1), 
+                        labels = c("No", "Yes")
+                        )
+#nitr
+#unique(merged_df$nitr)
+merged_df$nitr <- factor(merged_df$nitr,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#pro
+#unique(merged_df$pro)
+merged_df$pro <- factor(merged_df$pro,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#diuretic
+#unique(merged_df$diuretic)
+merged_df$diuretic <- factor(merged_df$diuretic,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#proto
+#unique(merged_df$proto)
+merged_df$proto <- factor(merged_df$proto,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#exang
+#unique(merged_df$exang)
+merged_df$exang <- factor(merged_df$exang,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#xhypo
+#unique(merged_df$xhypo)
+merged_df$xhypo <- factor(merged_df$xhypo,
+                     levels = c(0, 1),
+                     labels = c("No", "Yes")
+                     )
+#slope
+#unique(merged_df$slope)
+# check count of 0 valuyes
+#sum(merged_df$slope == 0, na.rm = TRUE)
+# replace 0 with NA
+merged_df <- merged_df %>%
+  mutate(slope = ifelse(slope == 0, NA, slope))
+# factor
+merged_df$slope <- factor(merged_df$slope,
+                     levels = c(1, 2, 3),
+                     labels = c("Upsloping", "Flat", "Downsloping"),
+                     ordered = TRUE
+                     )
+#restwm
+#unique(merged_df$restwm)
+# check count of 0 valuyes
+# factor
+merged_df$restwm <- factor(merged_df$restwm,
+                     levels = c(0, 1, 2, 3),
+                     labels = c("None", "Mild/Moderate", "Moderate/Severe", 
+                                "Akinesis"),
+                     ordered = TRUE
+                     )
+#thal
+#unique(merged_df$thal)
+# examine 1, 2, 5 values which are not in the documentation
+# check count of 1,2,5 values
+#sum(merged_df$thal == 1, na.rm = TRUE)
+#sum(merged_df$thal == 2, na.rm = TRUE)
+#sum(merged_df$thal == 5, na.rm = TRUE)
+# replace 1, 2, 5 with na
+merged_df <- merged_df %>%
+  mutate(thal = ifelse(thal == 1, NA, thal)) %>%
+  mutate(thal = ifelse(thal == 2, NA, thal)) %>%
+  mutate(thal = ifelse(thal == 4, NA, thal)) %>%
+  mutate(thal = ifelse(thal == 5, NA, thal))
+```
+
+## Data Cleaning
+
+This below section of code starts by removing columns that are unused as indicated by the hear-disease.names text file which serves as a data dictionary and source for information on all the data sets. Once the explicitly unnecessary columns are removed, we convert the -9's and -9.0's into NA values and set a threshold for feature removal of if the feature is missing more than 60% of the observations it is immediately dropped. Once these features have been removed we focus on removing near zero variance features.
+
+```{r data_cleaning}
+# remove unnecessary columns as indicated in heart-disease.names
+# cols marked as not used or dummy variables
+not_used_dummy_var <- c(
+  "id", "ccf", "dummy", "restckm", "exerckm", "thalsev", "thalpul",
+  "earlobe", "lvx1", "lvx2", "lvx3", "lvx4", "lvf", "cathef", "junk", "name"
+)
+
+df_cleaning <- merged_df %>%
+  select(-all_of(not_used_dummy_var))
+
+# convert -9 to NA
+df_cleaning <- df_cleaning %>%
+  mutate(across(where(is.character), ~ na_if(.x, "-9"))) %>%   # character columns
+  mutate(across(where(is.numeric), ~ na_if(.x, -9)))           # numeric columns
+#Get NA count
+sum(is.na(df_cleaning))
+#get dimensions of the data
+df_cleaning %>% dim
+#reexamine the head
+df_cleaning %>% head()
+
+# calculate percentage missing
+missing_threshold <- 60
+missing_pct <- df_cleaning %>%
+  summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "missing_percent") %>%
+  arrange(desc(missing_percent))
+
+# filter by col missing
+missing_cols <- missing_pct %>%
+  filter(missing_percent > missing_threshold)
+var_missing_gt_60 <- missing_cols$column
+
+missing_cols
+# drop cols missing greater than threshold
+df_cleaning <- df_cleaning %>%
+  select(-all_of(var_missing_gt_60))
+dim(df_cleaning)
+
+# check near zero variance vars
+nzv_cols <- nearZeroVar(df_cleaning %>% 
+    select(-num), saveMetrics = TRUE)
+nzv_cols %>% filter(nzv == TRUE)
+
+# get column names of nzv
+nzv_names <- nzv_cols %>%
+  filter(nzv ==TRUE) %>%
+  rownames()
+nzv_names
+
+# remove nzv variables
+df_cleaning <- df_cleaning %>%
+  select(-all_of(nzv_names))
+
+# add back ca column for EDA
+df_cleaning$ca <- merged_df$ca
+df_cleaning$ca <- na_if(df_cleaning$ca, -9)
+
+dim(df_cleaning)
+```
+
+In the process of removing variables with \>60% missing data, the `ca` variable, which represents *Major vessels via fluoroscopy* was removed due to having 67.6% missing data. This variable was part of the *cleveland-14* set. It has re-added to the final data set after *nzv* variables were removed.
+
+### Export cleaned dataset
+
+```{r export_cleaned}
+# export to file
+write.csv(df_cleaning, here("Data/Clean", "heart_disease_cleaned.csv"), row.names = FALSE)
+saveRDS(df_cleaning, here("Data/Clean", "heart_disease_cleaned.rds"))
+```
+
+
+# Exploratory Data Analysis
+
+```{r EDA}
+df <- readRDS(here("Data/Clean", "heart_disease_cleaned.rds"))
+# head(df)
+
+missing_var <- df %>%
+  summarise(across(everything(), ~ mean(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "missing_pct")
+
+missing_var %>%
+  filter(missing_pct > 0) %>%
+  arrange(desc(missing_pct))
+
+# bar chart of missingness per feature
+gg_miss_var(df) + 
+  labs(
+    title = "Missing Data per Feature", 
+    x = "Features", 
+    y = "Proportion missing"
+  )
+
+# missingness matrix
+aggr(df, numbers = TRUE, sortVars = TRUE, cex.axis = 0.7,
+     main = "Missingness Matrix", 
+     sub = "Red = missing, Blue = observed")
+
+# missingness correlation / upset plot
+gg_miss_upset(df, nsets = 10, main.bar.color = "black")
+title("UpSet Plot of Missingness Combinations",
+      sub = "Top bars = Freq of combo, Side bars = total missing / feature")
+```
+
+## Variables Missing > 40%
+
+-   ca: cleveland-14 variable - represents # of major vessels (0 - 3) colored 
+    by fluoroscopy.
+-   thal: cleveland-14 variable - results from thallium stress test
+-   thaltime: time duration for thallium stress test
+-   years: number of years as a smoker
+-   rldv5: height at rest
+-   famhist: family history of coronary artery disease
+-   cigs: cigarettes smoked per day
+
+### Upset
+
+The UpSet plot shows the intersections of variable sets, similar to a 
+Venn Diagram. This plot shows the combinations of variables that have missing 
+values and the total of thos combinations. 
+
+-   based on upset table, `ca`, `thal`, and `thaltime` are missing together
+-   missingness might not be random
+
+### Custom Functions
+```{r custom_functions}
+# function for showing histogram
+show_histogram <- function(dataframe, feature) {
+  ggplot(dataframe, aes(x = {{feature}})) + 
+    geom_histogram(binwidth = 1, fill = "steelblue", color = "white") + 
+  labs(
+    title = paste("Histogram of", rlang::as_label(enquo(feature))), 
+    x = rlang::as_label(enquo(feature)), 
+    y = "Count"
+  ) + 
+  theme_minimal()
+}
+# function for showing desnsity plot
+show_densityplot <- function(dataframe, feature) {
+  ggplot(df, aes(x = {{ feature }})) +
+    geom_density(fill = "darkorange", alpha = 0.5) +
+    labs(
+      title = paste("Density Plot of", rlang::as_label(enquo(feature))), 
+      x = rlang::as_label(enquo(feature)), 
+      y = "Count"
+    ) +
+    theme_minimal()
+}
+
+show_barplot <- function(dataframe, feature) {
+  ggplot(dataframe, aes(x = {{feature}})) +
+  geom_bar(fill = "steelblue") +
+  labs(
+    title = paste("Bar Plot of", rlang::as_label(enquo(feature))), 
+      x = rlang::as_label(enquo(feature)),  
+    y = "Count") +
+  theme_minimal()
+}
+```
+
+### Feature: `ca`
+
+```{r ca}
+
+show_histogram(df, ca)
+show_densityplot(df, ca)
+
+# impute with median and missingness flag
+df <- df %>%
+  mutate(
+    ca_missing = ifelse(is.na(ca), 1, 0),
+    ca_imputed = ifelse(is.na(ca), median(ca, na.rm = TRUE), ca)
+  )
+
+# drop imputed column
+df <- df %>%
+  select(-ca)
+```
+
+Feature `ca` has a right skew therefore median was used for imputation.
+
+### Feature: `thal`
+
+```{r thal}
+show_histogram(df, thal)
+show_densityplot(df, thal)
+table(df$thal)
+
+# impute with mode and missingness flag
+df <- df %>%
+  mutate(
+    thal_missing = ifelse(is.na(df$thal), 1, 0),
+    thal_imputed = ifelse(is.na(df$thal), 3, df$thal) # mode imputation
+  )
+
+# drop imputed column
+df <- df %>%
+  select(-thal)
+```
+
+### Feature: `thaltime`
+
+```{r thaltime}
+summary(df$thaltime)
+sort(table(df$thaltime), decreasing = TRUE)
+
+# histogram
+show_histogram(df, thaltime)
+show_densityplot(df, thaltime)
+
+# impute with median + missingness flag
+df <- df %>%
+  mutate(
+    thaltime_missing = ifelse(is.na(thaltime), 1, 0),
+    thaltime_imputed = ifelse(is.na(thaltime), median(thaltime, na.rm = TRUE), thaltime)
+  )
+
+# drop imputed column
+df <- df %>%
+  select(-thaltime)
+```
+
+Feature `thaltime` showed a right skew. Imputed with median.
+
+### Features: `years` and `cigs`
+
+```{r}
+show_histogram(df, years)
+show_densityplot(df, years) 
+
+show_histogram(df, cigs)
+show_densityplot(df, cigs)
+
+ggplot(df, aes(x = years, y = cigs)) + geom_point()
+corr_val <- cor(df$years, df$cigs, use = "complete.obs", method = "pearson")
+cat("Correlation value:", corr_val)
+
+# create smoke_profile feature
+# generative AI was used to create this code to create the smoke_profile feature
+df <- df %>%
+  mutate(
+    # Categorize smoking duration
+    years_cat = case_when(
+      is.na(years)        ~ "missing",
+      years == 0          ~ "non",
+      years <= 10         ~ "short",
+      years <= 20         ~ "medium",
+      years <= 40         ~ "long",
+      TRUE                ~ "very_long"
+    ),
+
+    # Categorize cigarette intensity
+    cigs_cat = case_when(
+      is.na(cigs)         ~ "missing",
+      cigs == 0           ~ "non",
+      cigs <= 10          ~ "light",
+      cigs <= 20          ~ "moderate",
+      cigs <= 40          ~ "heavy",
+      TRUE                ~ "very_heavy"
+    ),
+
+    # Combine into single profile
+    smoke_profile = case_when(
+      years_cat == "non" & cigs_cat == "non"             ~ "non",
+      years_cat == "missing" | cigs_cat == "missing"     ~ "missing",
+      TRUE                                                ~ paste0(cigs_cat, "_", years_cat)
+    ),
+
+    # Optional: convert to factor
+    smoke_profile = factor(smoke_profile)
+  )
+
+# drop helper columns
+df <- df %>%
+  select(-c(cigs_cat, years_cat))
+
+# drop imputed column
+df <- df %>%
+  select(-c(years, cigs))
+```
+
+Features `years` and `cigs` show moderate collinearity 
+(Pearson correlation = 0.59). Due to missing data, a `smoke_profile` was 
+engineered to combine the two columns.
+
+### Feature: `rldv5`
+
+```{r rldv5}
+show_histogram(df, rldv5)
+show_densityplot(df, rldv5)
+
+df <- df %>%
+  mutate(
+    rldv5_missing = ifelse(is.na(rldv5), 1, 0), 
+    rldv5_imputed = ifelse(is.na(rldv5), median(rldv5, na.rm = TRUE), rldv5)
+  )
+
+# drop imputed column
+df <- df %>%
+  select(-rldv5)
+```
+
+Feature `rldv5` has a right skew therefore imputed with median.
+
+### Feature: `famhist`
+
+```{r famhist}
+show_barplot(df, famhist)
+unique(df$famhist)
+
+# replace NA with "Missing" 
+df$famhist <- as.character(df$famhist)
+df$famhist[is.na(df$famhist)] <- "Missing"
+df$famhist <- factor(df$famhist)
+
+show_barplot(df, famhist)
+```
+
+Missing values in `famhist` were imputed with 'missing'.
+
+#### Dropping original columns after imputation
+
+```{r drop_imputed_gt40}
+# list of cols
+# missing_gt40 <- c('ca', 'thal', 'thaltime', 'years', 'rldv5', 'famhist', 'cigs')
+imputed_cols <-c('ca_imputed', 'ca_missing', 'thal_imputed', 'thal_missing', 
+                 'thaltime_missing', 'thaltime_imputed', 'smoke_profile', 
+                 'rldv5_missing', 'rldv5_imputed', 'famhist')
+# drop date / time columns
+drop_cols <- c('cmo', 'cday', 'cyr', 'ekgmo', 'ekgday', 'ekgyr')
+df1 <- df %>%
+  select(-all_of(drop_cols))
+
+# compare dimensions
+dim(df_cleaning)
+dim(df)
+dim(df1)
+
+colnames(df1)
+
+head(df1)
+```
+
+## Missing < 40% 
+
+### Binary Variables
+
+```{r remaining_cols}
+# list binary var
+df1 %>% 
+  summarise(across(everything(), ~ n_distinct(na.omit(.)))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "n_unique") %>%
+  filter(n_unique == 2)
+# get binary var names
+binary_vars <- df1 %>%
+  select(where(~ n_distinct(na.omit(.)) == 2)) %>%
+  names()
+
+# convert binary vars to factors
+df1[binary_vars] <- lapply(df1[binary_vars], as.factor)
+# convert sex to male/female
+#df$sex <- factor(df$sex, levels = c(0, 1), labels = c("female", "male"))
+
+head(df1)
+```
+### Numerical Variables
+
+```{r numerical_with_na}
+numeric_vars <- df1 %>%
+  select(where(is.numeric)) %>%
+  names() 
+
+numeric_na <- df1 %>%
+  select(where(is.numeric)) %>%
+  select(where(~ any(is.na(.)))) %>%
+  names()
+
+numeric_vars
+df1[numeric_na]
+
+# impute w median and create missingness columns
+for (var in numeric_na) {
+  median_val <- median(df1[[var]], na.rm = TRUE)
+  df1[[paste0(var, "_missing")]] <- ifelse(is.na(df1[[var]]), 1, 0)
+  df1[[paste0(var, "_imputed")]] <- ifelse(is.na(df1[[var]]), median_val, df1[[var]])
+}
+
+# drop imputed columns
+df1 <- df1 %>%
+  select(-all_of(numeric_na))
+dim(df1)
+```
+
+Numerical variables were imputed with the median value. Missing flags were 
+also created for these variables. 
+
+### Categorical Variables
+
+```{r categorical_with_na}
+
+categorical_na <- df1 %>%
+  select(where(~ is.factor(.) || is.character(.))) %>%
+  select(where(~ any(is.na(.)))) %>%
+  names()
+
+# impute with Missing
+for (var in categorical_na) {
+  df1[[var]] <- as.character(df1[[var]])
+  df1[[var]][is.na(df1[[var]])] <- "Missing"
+  df1[[var]] <- factor(df1[[var]])
+}
+dim(df1)
+
+anyNA(df1)
+```
+For NAs in categorical variables, NAs were replaced with 'Missing'. 
+
+### Create binary for target (num)
+
+```{r}
+# create binary target 0 = no disease, 1 - 3 = varying levels
+df1 <- df1 %>%
+  mutate(
+    has_disease = factor(ifelse(num == 0, "No", "Yes"), levels = c("No", "Yes"))
+  )
+
+head(df1)
+```
+Binary target column for the target variable `num` was created. 
+The column `num` was not removed from the dataset. 
+
+### Export finalized dataset
+```{r export_imputed}
+# export final dataset
+saveRDS(df1, here("Data/Clean", "heart_disease_final.rds"))
+
+```
+
+
+# Univariate Analysis
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+df <- readRDS(here("Data/Clean", "heart_disease_final.rds"))
+head(df)
+
+# separate target from variables
+target_vars <- c("num", "has_disease")
+y_df <- df %>%
+  select(all_of(target_vars))
+         
+X_df <- df %>%
+  select(-all_of(target_vars))
+```
+
+## Numerical vars 
+
+```{r}
+num_vars <-X_df %>%
+  select(where(is.numeric)) %>%
+  names()
+
+# summary 
+X_df %>%
+  select(all_of(num_vars)) %>%
+  summary()
+
+
+# Example: just the *_imputed columns (exclude *_missing)
+imputed_vars <- names(X_df)[str_detect(names(X_df), "_imputed") & !str_detect(names(X_df), "_missing")]
+
+X_df %>%
+  select(all_of(imputed_vars)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = "steelblue", outlier.shape = 16, outlier.size = 1) +
+  theme_minimal() +
+  labs(title = "Boxplots of Imputed Numeric Variables", x = "Variable", y = "Value") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# summary statistics
+X_df %>%
+  select(where(is.numeric)) %>%
+  skimr::skim()
+```
+
+
+## Categorical vars
+
+```{r}
+cat_vars <- X_df %>%
+  select(where(~ is.factor(.) || is.character(.))) %>%
+  names()
+
+# relative frequency tables
+for (var in cat_vars) {
+  cat("----", var, "----\n")
+  print(prop.table(table(X_df[[var]])))
+  cat("\n")
+}
+
+```
+```{r barplots-loop, results='asis', echo=FALSE, message=FALSE, warning=FALSE}
+# custom function for bar plots
+plot_bar <- function(dataframe, var) {
+  ggplot(dataframe, aes(x = .data[[var]])) +
+    geom_bar(fill = "steelblue") +
+    labs(title = paste("Bar Plot of", var), x = var, y = "Count") +
+    theme_minimal()
+}
+
+for (var in cat_vars) {
+  print(plot_bar(X_df, var))
+}
+```
+
+
+## Feature Types
+
+```{r}
+X_df %>%
+  summarise(
+    numeric = sum(sapply(., is.numeric)),
+    categorical = sum(sapply(., is.factor))
+  )
+
+```
+
+# Bivariate Analysis
+
+## Numerical Vars
+
+### Box Plots
+
+```{r}
+plot_bivariate_num <- function(var) {
+  ggplot(df, aes(x = factor(has_disease), y = .data[[var]])) +
+    geom_boxplot(fill = "skyblue") +
+    labs(title = paste(var, "by Disease Status"), x = "Has Disease", y = var) +
+    theme_minimal()
+}
+
+for (var in num_vars){ 
+print(plot_bivariate_num(var))
+}
+
+```
+
+### Welch's two-sample t-test
+
+Statistical testing to determin if there are significant differences between
+the means of two features. 
+
+```{r}
+for (var in num_vars) {
+  formula <- reformulate("has_disease", response = var)
+  test_result <- t.test(formula, data = df)
+  cat("=== T-test for", var, "===\n")
+  print(test_result)
+  cat("\n\n")
+}
+```
+
+### Summary for numerical variables
+
+```{r}
+missing_flags <- colnames(df)[str_detect(colnames(df), "_missing$")]
+
+# recommendation code generated with the help of ChatGPT. 
+# Create an empty data frame to store results
+bivariate_summary <- data.frame(
+  Variable = character(),
+  p_value = numeric(),
+  Missingness_Flag = logical(),
+  Recommendation = character(),
+  stringsAsFactors = FALSE
+)
+
+
+# Loop through and compute t-tests
+for (var in num_vars) {
+  formula <- reformulate("has_disease", response = var)
+  p_val <- tryCatch(t.test(formula, data = df)$p.value, error = function(e) NA)
+  
+  is_missing_flag <- paste0(var, "_missing") %in% colnames(df) | var %in% missing_flags
+
+  recommendation <- if (!is.na(p_val) && p_val < 0.05) {
+    "Include (predictive)"
+  } else if (is_missing_flag) {
+    "Include (missingness informative)"
+  } else {
+    "Optional (evaluate with model)"
+  }
+  
+  bivariate_summary <- rbind(
+    bivariate_summary,
+    data.frame(
+      Variable = var,
+      p_value = round(p_val, 5),
+      Missingness_Flag = is_missing_flag,
+      Recommendation = recommendation
+    )
+  )
+}
+
+# View result
+bivariate_summary
+
+# create list of variables recommended as Include
+selected_num_vars <- bivariate_summary %>%
+  filter(str_detect(Recommendation, "Include")) %>%
+  pull(Variable)
+```
+
+Based on recommendation, all variables recommended as 'Include' will be kept.
+
+
+## Categorical Vars
+
+### Bar Plots
+```{r}
+plot_bivariate_cat <- function(var) {
+  ggplot(df, aes(x = .data[[var]], fill = factor(has_disease))) +
+    geom_bar(position = "fill") +  # proportion stacked
+    labs(title = paste(var, "by Disease Status"), y = "Proportion", fill = "Disease") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+for (var in cat_vars) {
+  print(plot_bivariate_cat(var))
+}
+```
+The following groups of variables have similar distributions which means they 
+are possibly correlated:
+
+Group 1: "prop", "nitr", "pro", "diuretic", "exang"
+Group 2:  "ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"
+
+```{r}
+cat_vars_to_keep <- c("sex", "painexer", "relrest", "cp", "htn", "fbs", "restecg", "exang", "slope", "ladprox", "location", "ca_missing", "thatltime_missing", "smoke_profile")
+```
+
+#### Cramer's V association test
+```{r}
+# cramer v
+cramerv <- function(dataframe, var_list){
+  cramerV_matrix <- matrix(NA, nrow = length(var_list), ncol = length(var_list),
+                           dimnames = list(var_list, var_list))
+  
+  for (i in seq_along(var_list)) {
+    for (j in seq_along(var_list)) {
+      tbl <- table(dataframe[[var_list[i]]], dataframe[[var_list[j]]])
+      cramerV_matrix[i, j] <- suppressWarnings(cramerV(tbl))
+    }
+  }
+  print(cramerV_matrix)
+}
+
+# Check correlation of variables that to have similar distribution
+cramerv(df, c("prop", "nitr", "pro", "diuretic", "exang"))
+cramerv(df, c("ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"))
+
+drop_colinearity_cols <- c("prop", "nitr", "pro", "diuretic", "laddist", 
+                           "cxmain", "om1", "rcaprox", "rcadist")
+```
+
+Based on the results, each set of variables are moderate to highly correlated.
+To reduce multicollinearity, the following variables will be kept due to 
+clinical significance: 
+* `exang` - exercise-induced angina
+* `ladprox` - proximal LAD artery
+
+### Summary for categorical variables
+
+```{r}
+# recommendation code generated with the help of ChatGPT. 
+cat_summary <- data.frame(
+  Variable = character(),
+  p_value = numeric(),
+  Recommendation = character(),
+  stringsAsFactors = FALSE
+)
+
+for (var in cat_vars) {
+  tbl <- table(df[[var]], df$has_disease)
+  p_val <- tryCatch(chisq.test(tbl)$p.value, error = function(e) NA)
+
+  rec <- if (!is.na(p_val) && p_val < 0.05) {
+    "Include (predictive)"
+  } else {
+    "Optional (evaluate with model)"
+  }
+
+  cat_summary <- rbind(
+    cat_summary,
+    data.frame(Variable = var, p_value = round(p_val, 5), Recommendation = rec)
+  )
+}
+
+cat_summary
+
+# create list of all variables recommended as Include
+selected_cat_vars <- cat_summary %>%
+  filter(str_detect(Recommendation, "Include")) %>%
+  pull(Variable)
+
+selected_cat_vars
+```
+
+
+## Final Variable Sets
+
+```{r}
+# combine selected variables
+included_vars <- c(selected_num_vars, selected_cat_vars)
+
+model_df <- df %>%
+  select(all_of(included_vars), has_disease) %>%
+  select(-all_of(drop_colinearity_cols))
+
+str(model_df)
+```
+### Export dataset for modeling
+```{r}
+# export modeling dataset to RDS file
+saveRDS(model_df, here("Data/Clean", "heart_disease_modeling.rds"))
+
+model_df %>% dim()
+```
+
+The final modeling set has 899 observations and 39 features including the target variable. 

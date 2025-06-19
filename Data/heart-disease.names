@@ -216,12 +216,12 @@ Publication Request:
         -- Value 1: > 50% diameter narrowing
         (in any major vessel: attributes 59 through 68 are vessels)
      59 lmt
-     60 ladprox
+     60 ladprox - Proximal left anterior descending artery, clinical importance in supplying blood to heart
      61 laddist
      62 diag
      63 cxmain
      64 ramus
-     65 om1
+     65 om1 - refers to one of the major vessels that assessed during a medical procedure.
      66 om2
      67 rcaprox
      68 rcadist
