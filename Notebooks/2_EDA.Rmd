@@ -1,6 +1,8 @@
 ---
 title: "2_EDA"
-output: pdf_document
+output: 
+  pdf_document:
+    latex_engine: xelatex
 date: "2025-06-11"
 ---
 
@@ -18,6 +20,7 @@ This R markdown document will be used to perform Exploratory Data Analysis (EDA)
 library(tidyverse)
 library(readr)
 library(ggplot2)
+library(grid)
 library(corrplot)
 library(caret)
 library(here)
@@ -265,7 +268,6 @@ write.csv(df_cleaning, here("Data/Clean", "heart_disease_cleaned.csv"), row.name
 saveRDS(df_cleaning, here("Data/Clean", "heart_disease_cleaned.rds"))
 ```
 
-
 # Exploratory Data Analysis
 
 ```{r EDA}
@@ -290,19 +292,20 @@ gg_miss_var(df) +
 
 # missingness matrix
 aggr(df, numbers = TRUE, sortVars = TRUE, cex.axis = 0.7,
-     main = "Missingness Matrix", 
+     main = "Missingness Matrix",
      sub = "Red = missing, Blue = observed")
 
 # missingness correlation / upset plot
 gg_miss_upset(df, nsets = 10, main.bar.color = "black")
-title("UpSet Plot of Missingness Combinations",
-      sub = "Top bars = Freq of combo, Side bars = total missing / feature")
+# Add a title manually
+grid.text("UpSet Plot of Missingness Combinations", y = 0.95, gp = gpar(fontsize = 14, fontface = "bold"))
+grid.text("Top bars = Freq of combo, Side bars = total missing / feature", y = 0.91, gp = gpar(fontsize = 10))
+
 ```
 
-## Variables Missing > 40%
+## Variables Missing \> 40%
 
--   ca: cleveland-14 variable - represents # of major vessels (0 - 3) colored 
-    by fluoroscopy.
+-   ca: cleveland-14 variable - represents \# of major vessels (0 - 3) colored by fluoroscopy.
 -   thal: cleveland-14 variable - results from thallium stress test
 -   thaltime: time duration for thallium stress test
 -   years: number of years as a smoker
@@ -312,14 +315,13 @@ title("UpSet Plot of Missingness Combinations",
 
 ### Upset
 
-The UpSet plot shows the intersections of variable sets, similar to a 
-Venn Diagram. This plot shows the combinations of variables that have missing 
-values and the total of thos combinations. 
+The UpSet plot shows the intersections of variable sets, similar to a Venn Diagram. This plot shows the combinations of variables that have missing values and the total of thos combinations.
 
 -   based on upset table, `ca`, `thal`, and `thaltime` are missing together
 -   missingness might not be random
 
 ### Custom Functions
+
 ```{r custom_functions}
 # function for showing histogram
 show_histogram <- function(dataframe, feature) {
@@ -476,9 +478,7 @@ df <- df %>%
   select(-c(years, cigs))
 ```
 
-Features `years` and `cigs` show moderate collinearity 
-(Pearson correlation = 0.59). Due to missing data, a `smoke_profile` was 
-engineered to combine the two columns.
+Features `years` and `cigs` show moderate collinearity (Pearson correlation = 0.59). Due to missing data, a `smoke_profile` was engineered to combine the two columns.
 
 ### Feature: `rldv5`
 
@@ -538,7 +538,7 @@ colnames(df1)
 head(df1)
 ```
 
-## Missing < 40% 
+## Missing \< 40%
 
 ### Binary Variables
 
@@ -560,6 +560,7 @@ df1[binary_vars] <- lapply(df1[binary_vars], as.factor)
 
 head(df1)
 ```
+
 ### Numerical Variables
 
 ```{r numerical_with_na}
@@ -588,8 +589,7 @@ df1 <- df1 %>%
 dim(df1)
 ```
 
-Numerical variables were imputed with the median value. Missing flags were 
-also created for these variables. 
+Numerical variables were imputed with the median value. Missing flags were also created for these variables.
 
 ### Categorical Variables
 
@@ -610,7 +610,8 @@ dim(df1)
 
 anyNA(df1)
 ```
-For NAs in categorical variables, NAs were replaced with 'Missing'. 
+
+For NAs in categorical variables, NAs were replaced with 'Missing'.
 
 ### Create binary for target (num)
 
@@ -623,16 +624,16 @@ df1 <- df1 %>%
 
 head(df1)
 ```
-Binary target column for the target variable `num` was created. 
-The column `num` was not removed from the dataset. 
+
+Binary target column for the target variable `num` was created. The column `num` was not removed from the dataset.
 
 ### Export finalized dataset
+
 ```{r export_imputed}
 # export final dataset
 saveRDS(df1, here("Data/Clean", "heart_disease_final.rds"))
 
 ```
-
 
 # Univariate Analysis
 
@@ -653,7 +654,7 @@ X_df <- df %>%
   select(-all_of(target_vars))
 ```
 
-## Numerical vars 
+## Numerical vars
 
 ```{r}
 num_vars <-X_df %>%
@@ -684,7 +685,6 @@ X_df %>%
   skimr::skim()
 ```
 
-
 ## Categorical vars
 
 ```{r}
@@ -700,6 +700,7 @@ for (var in cat_vars) {
 }
 
 ```
+
 ```{r barplots-loop, results='asis', echo=FALSE, message=FALSE, warning=FALSE}
 # custom function for bar plots
 plot_bar <- function(dataframe, var) {
@@ -713,7 +714,6 @@ for (var in cat_vars) {
   print(plot_bar(X_df, var))
 }
 ```
-
 
 ## Feature Types
 
@@ -748,8 +748,7 @@ print(plot_bivariate_num(var))
 
 ### Welch's two-sample t-test
 
-Statistical testing to determin if there are significant differences between
-the means of two features. 
+Statistical testing to determine if there are significant differences between the means of two features.
 
 ```{r}
 for (var in num_vars) {
@@ -814,10 +813,10 @@ selected_num_vars <- bivariate_summary %>%
 
 Based on recommendation, all variables recommended as 'Include' will be kept.
 
-
 ## Categorical Vars
 
 ### Bar Plots
+
 ```{r}
 plot_bivariate_cat <- function(var) {
   ggplot(df, aes(x = .data[[var]], fill = factor(has_disease))) +
@@ -831,17 +830,17 @@ for (var in cat_vars) {
   print(plot_bivariate_cat(var))
 }
 ```
-The following groups of variables have similar distributions which means they 
-are possibly correlated:
 
-Group 1: "prop", "nitr", "pro", "diuretic", "exang"
-Group 2:  "ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"
+The following groups of variables have similar distributions which means they are possibly correlated:
+
+Group 1: "prop", "nitr", "pro", "diuretic", "exang" Group 2: "ladprox", "laddist", "cxmain", "om1", "rcaprox", "rcadist"
 
 ```{r}
 cat_vars_to_keep <- c("sex", "painexer", "relrest", "cp", "htn", "fbs", "restecg", "exang", "slope", "ladprox", "location", "ca_missing", "thatltime_missing", "smoke_profile")
 ```
 
 #### Cramer's V association test
+
 ```{r}
 # cramer v
 cramerv <- function(dataframe, var_list){
@@ -865,11 +864,7 @@ drop_colinearity_cols <- c("prop", "nitr", "pro", "diuretic", "laddist",
                            "cxmain", "om1", "rcaprox", "rcadist")
 ```
 
-Based on the results, each set of variables are moderate to highly correlated.
-To reduce multicollinearity, the following variables will be kept due to 
-clinical significance: 
-* `exang` - exercise-induced angina
-* `ladprox` - proximal LAD artery
+Based on the results, each set of variables are moderate to highly correlated. To reduce multicollinearity, the following variables will be kept due to clinical significance: \* `exang` - exercise-induced angina \* `ladprox` - proximal LAD artery
 
 ### Summary for categorical variables
 
@@ -908,7 +903,6 @@ selected_cat_vars <- cat_summary %>%
 selected_cat_vars
 ```
 
-
 ## Final Variable Sets
 
 ```{r}
@@ -921,7 +915,9 @@ model_df <- df %>%
 
 str(model_df)
 ```
+
 ### Export dataset for modeling
+
 ```{r}
 # export modeling dataset to RDS file
 saveRDS(model_df, here("Data/Clean", "heart_disease_modeling.rds"))
@@ -929,4 +925,4 @@ saveRDS(model_df, here("Data/Clean", "heart_disease_modeling.rds"))
 model_df %>% dim()
 ```
 
-The final modeling set has 899 observations and 39 features including the target variable. 
+The final modeling set has 899 observations and 39 features including the target variable.
