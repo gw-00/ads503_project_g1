@@ -1,6 +1,8 @@
 ---
-title: "Modeling Notebook"
-output: pdf_document
+title: "3_modeling"
+output: 
+  pdf_document:
+    latex_engine: xelatex
 date: "2025-06-13"
 ---
 
